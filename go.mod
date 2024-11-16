@@ -1,4 +1,4 @@
-module github.com/bobch27/firevault-go
+module github.com/bobch27/firevault_go
 
 go 1.22.7
 

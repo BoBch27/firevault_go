@@ -6,7 +6,7 @@ Installation
 Use go get to install Firevault.
 
 ```go
-go get github.com/bobch27/firevault-go
+go get github.com/bobch27/firevault_go
 ```
 
 Importing
@@ -14,7 +14,7 @@ Importing
 Import the package in your code.
 
 ```go
-import "github.com/bobch27/firevault-go"
+import "github.com/bobch27/firevault_go"
 ```
 
 Connection
@@ -25,7 +25,7 @@ You can connect to Firevault using the `Connect` method, providing a project ID.
 import (
 	"log"
 
-	"github.com/bobch27/firevault-go"
+	"github.com/bobch27/firevault_go"
 )
 
 // Sets your Google Cloud Platform project ID.
