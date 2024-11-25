@@ -2,6 +2,7 @@ package firevault
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -247,6 +248,115 @@ func TestCustomRules(t *testing.T) {
 	}
 }
 
+func TestErrorFormatting(t *testing.T) {
+	v := newValidator()
+
+	tests := []struct {
+		name            string
+		errorFormatters []ErrorFormatterFn
+		data            interface{}
+		expectedErrMsg  string
+		expectCustomErr bool
+	}{
+		{
+			name: "Custom error message for required field",
+			errorFormatters: []ErrorFormatterFn{
+				func(fe FieldError) error {
+					// Create a custom error message for required fields
+					if fe.Tag() == "required" {
+						return fmt.Errorf("custom required error: %s is mandatory", fe.DisplayField())
+					}
+					return nil
+				},
+			},
+			data: &struct {
+				Name string `firevault:"name,required"`
+			}{},
+			expectedErrMsg:  "custom required error: Name is mandatory",
+			expectCustomErr: true,
+		},
+		{
+			name: "Multiple error formatters with first taking precedence",
+			errorFormatters: []ErrorFormatterFn{
+				func(fe FieldError) error {
+					// First error formatter
+					if fe.Tag() == "required" {
+						return fmt.Errorf("first formatter: %s is required", fe.DisplayField())
+					}
+					return nil
+				},
+				func(fe FieldError) error {
+					// Second error formatter (should not be called)
+					if fe.Tag() == "required" {
+						return fmt.Errorf("second formatter: %s is mandatory", fe.DisplayField())
+					}
+					return nil
+				},
+			},
+			data: &struct {
+				Name string `firevault:"name,required"`
+			}{},
+			expectedErrMsg:  "first formatter: Name is required",
+			expectCustomErr: true,
+		},
+		{
+			name: "Multiple formatters - first returns nil",
+			errorFormatters: []ErrorFormatterFn{
+				func(fe FieldError) error {
+					// First formatter returns nil
+					return nil
+				},
+				func(fe FieldError) error {
+					// Second formatter handles the error
+					if fe.Tag() == "required" {
+						return fmt.Errorf("second formatter: %s is mandatory", fe.DisplayField())
+					}
+					return nil
+				},
+			},
+			data: &struct {
+				Name string `firevault:"name,required"`
+			}{},
+			expectedErrMsg:  "second formatter: Name is mandatory",
+			expectCustomErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset the validator to clear any previously registered formatters
+			v = newValidator()
+
+			// Register the error formatters
+			for _, formatter := range tt.errorFormatters {
+				err := v.registerErrorFormatter(formatter)
+				if err != nil {
+					t.Fatalf("Failed to register error formatter: %v", err)
+				}
+			}
+
+			// Validate the data
+			_, validationErr := v.validate(context.Background(), tt.data, validationOpts{
+				method: create,
+			})
+
+			// Check if error is as expected
+			if tt.expectCustomErr {
+				if validationErr == nil {
+					t.Errorf("Expected an error, got nil")
+					return
+				}
+
+				// Check if the error message matches the expected message
+				if validationErr.Error() != tt.expectedErrMsg {
+					t.Errorf("Unexpected error message. Got: %v, Want: %v",
+						validationErr.Error(), tt.expectedErrMsg)
+				}
+			}
+		})
+	}
+}
+
 func TestRegisterValidation(t *testing.T) {
 	v := newValidator()
 
@@ -346,6 +456,38 @@ func TestRegisterTransformation(t *testing.T) {
 			err := v.registerTransformation(tt.transName, tt.transformation)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validator.registerTransformation() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRegisterErrorFormatter(t *testing.T) {
+	v := newValidator()
+
+	tests := []struct {
+		name         string
+		errFormatter ErrorFormatterFn
+		wantErr      bool
+	}{
+		{
+			name: "Valid error formatter",
+			errFormatter: func(fe FieldError) error {
+				return nil
+			},
+			wantErr: false,
+		},
+		{
+			name:         "Nil error formatter",
+			errFormatter: nil,
+			wantErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := v.registerErrorFormatter(tt.errFormatter)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validator.registerErrorFormatter() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
