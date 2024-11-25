@@ -578,8 +578,8 @@ Here is an example of parsing returned error.
 ```go
 func parseError(err firevault.FieldError) {
 	if err.StructField() == "Password" { // or err.Field() == "password"
-		if err.Tag() == "min=6" {
-			fmt.Println("Password must be at least 6 characters long.")
+		if err.Tag() == "min" {
+			fmt.Printf("Password must be at least %s characters long.", err.Param())
 		} else {
 			fmt.Println(err.Error())
 		}
