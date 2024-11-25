@@ -46,7 +46,7 @@ func (c *Connection) Close() error {
 // Register a new validation rule.
 //
 // If a validation rule with the same name
-// already exists, the previous on will be replaced.
+// already exists, the previous one will be replaced.
 //
 // Registering such functions is not thread-safe;
 // it is intended that all rules be registered,
@@ -62,7 +62,7 @@ func (c *Connection) RegisterValidation(name string, validation ValidationFn) er
 // Register a new transformation rule.
 //
 // If a transformation rule with the same name
-// already exists, the previous on will be replaced.
+// already exists, the previous one will be replaced.
 //
 // Registering such functions is not thread-safe;
 // it is intended that all rules be registered,
@@ -92,6 +92,6 @@ func (c *Connection) RegisterErrorFormatter(errorFormatter ErrorFormatterFn) err
 	if c == nil {
 		return errors.New("firevault: nil Connection")
 	}
-	
+
 	return c.validator.registerErrorFormatter(errorFormatter)
 }

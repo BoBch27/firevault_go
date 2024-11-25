@@ -51,7 +51,7 @@ Defining a model is as simple as creating a struct with Firevault tags.
 ```go
 type User struct {
 	Name     string   `firevault:"name,required,omitempty"`
-	Email    string   `firevault:"email,required,email,isUnique,omitempty"`
+	Email    string   `firevault:"email,required,email,is_unique,omitempty"`
 	Password string   `firevault:"password,required,min=6,transform=hash_pass,omitempty"`
 	Address  *Address `firevault:"address,omitempty"`
 	Age      int      `firevault:"age,required,min=18,omitempty"`
@@ -97,7 +97,7 @@ Firevault validates fields' values based on the defined rules. There are built-i
 - To define a custom validation, use `Connection`'s `RegisterValidation` method.
 	- *Expects*:
 		- name: A `string` defining the validation name
-		- func: A function of type `ValidationFn`. The passed in function accepts two parameters.
+		- func: A function of type `ValidationFn`. The passed in function accepts four parameters.
 			- *Expects*:
 				- ctx: A context.
 				- path: A `string` which contains the field's path (using dot-separation).
@@ -106,6 +106,8 @@ Firevault validates fields' values based on the defined rules. There are built-i
 			- *Returns*:
 				- result: A `bool` which returns `true` if check has passed, and `false` if it hasn't.
 				- error: An `error` in case something went wrong during the check.
+
+*Registering custom validations is not thread-safe. It is intended that all rules be registered, prior to any validation. Also, if a rule with the same name already exists, the previous one will be replaced.*
 
 ```go
 connection.RegisterValidation(
@@ -136,7 +138,7 @@ Firevault also supports rules that transform the field's value. To use them, it'
 - To define a transformation, use `Connection`'s `RegisterTransformation` method.
 	- *Expects*:
 		- name: A `string` defining the validation name
-		- func: A function of type `TransformationFn`. The passed in function accepts one parameter.
+		- func: A function of type `TransformationFn`. The passed in function accepts three parameters.
 			- *Expects*: 
 				- ctx: A context.
 				- path: A `string` which contains the field's path (using dot-separation).
@@ -144,6 +146,8 @@ Firevault also supports rules that transform the field's value. To use them, it'
 			- *Returns*:
 				- result: An `interface{}` with the new value.
 				- error: An `error` in case something went wrong during the transformation.
+
+*Registering custom transformations is not thread-safe. It is intended that all rules be registered, prior to any validation. Also, if a rule with the same name already exists, the previous one will be replaced.*
 
 ```go
 connection.RegisterTransformation(
@@ -324,8 +328,7 @@ err := collection.Update(
 if err != nil {
 	fmt.Println(err)
 } 
-fmt.Println("Success") 
-// address.Line1 field will be deleted from document, since it's not present in data
+fmt.Println("Success") // address.Line1 field will be deleted from document, since it's not present in data
 ```
 - `Validate` - A method which validates and transforms passed in data. 
 	- *Expects*:
@@ -574,17 +577,78 @@ Custom Errors
 ------------
 During collection methods which require validation (i.e. `Create`, `Update` and `Validate`), Firevault may return an error of a `FieldError` interface, which can aid in presenting custom error messages to users. All other errors are of the usual `error` type. Available methods for `FieldError` can be found in the `field_error.go` file. 
 
-Here is an example of parsing returned error.
+Firevault supports the creation of custom, user-friendly, error messages, through `ErrorFormatterFn`. These are run whenever a `FieldError` is created (i.e. whenever a validation rule fails). All registered formatters are executed on the `FieldError` and if all return a nil error (or there's no registered formatters), a `FieldError` is returned instead. Otherwise, the first custom error is returned.
+
+*Error formatters:*
+- To define an error formatter, use `Connection`'s `RegisterErrorFormatter` method.
+	- *Expects*:
+		- func: A function of type `ErrorFormatterFn`. The passed in function accepts one parameter.
+			- *Expects*:
+				- fe: An error that complies with the `FieldError` interface.
+			- *Returns*:
+				- error: An `error` with a custom message, using `FieldError`'s field validation details.
+
+*Registering custom error formatters is not thread-safe. It is intended that all functions be registered, prior to any validation.*
+
 ```go
-func parseError(err firevault.FieldError) {
-	if err.StructField() == "Password" { // or err.Field() == "password"
-		if err.Tag() == "min" {
-			fmt.Printf("Password must be at least %s characters long.", err.Param())
+connection.RegisterErrorFormatter(func(fe FieldError) error {
+	if err.Tag() == "min" {
+		return fmt.Errorf("%s must be at least %s characters long.", fe.DisplayField(), fe.Param())
+	}
+
+	return nil
+})
+```
+
+This is how it can be used.
+
+```go
+id, err := collection.Create(ctx, &User{
+	Name: "Bobby Donev",
+	Email: "hello@bobbydonev.com",
+	Password: "12345",
+	Age: 26,
+	Address: &Address{
+		Line1: "1 High Street",
+		City:  "London",
+	},
+})
+if err != nil {
+	fmt.Println(err) // "Password must be at least 6 characters long."
+} else {
+	fmt.Println(id)
+}
+```
+```go
+id, err := collection.Create(ctx, &User{
+	Name: "Bobby Donev",
+	Email: "hello@.com", // will fail on the "email" tag
+	Password: "123456",
+	Age: 25,
+	Address: &Address{
+		Line1: "1 High Street",
+		City:  "London",
+	},
+})
+if err != nil {
+	fmt.Println(err) // error isn't catched by formatter; complies with FieldError
+} else {
+	fmt.Println(id)
+}
+```
+
+You can also directly handle and parse returned `FieldError`, without registering an error formatter. Here is an example of parsing a returned `FieldError`, in cases where an error formatter doesn't catch it, or in cases where no formatters are registered.
+
+```go
+func parseError(fe FieldError) {
+	if fe.StructField() == "Password" { // or fe.Field() == "password"
+		if fe.Tag() == "min" {
+			fmt.Printf("Password must be at least %s characters long.", fe.Param())
 		} else {
-			fmt.Println(err.Error())
+			fmt.Println(fe.Error())
 		}
 	} else {
-		fmt.Println(err.Error())
+		fmt.Println(fe.Error())
 	}
 }
 
@@ -599,7 +663,7 @@ id, err := collection.Create(ctx, &User{
 	},
 })
 if err != nil {
-	var fErr firevault.FieldError
+	var fErr FieldError
 	if errors.As(err, &fErr) {
 		parseError(fErr) // "Password must be at least 6 characters long."
 	} else {
