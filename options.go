@@ -24,8 +24,9 @@ type validationOpts struct {
 type Options struct {
 	// Skip all validations. Default is "false".
 	skipValidation bool
-	// Specify which fields (using "dot notation") should ignore
-	// the "omitempty" and "omitemptyupdate" tags.
+	// Specify which field paths (using dot-separated strings)
+	// should ignore the "omitempty" (including method-specific)
+	// tags.
 	//
 	// This can be useful when zero values are needed only during
 	// a specific method call.
@@ -70,7 +71,8 @@ func (o Options) SkipValidation() Options {
 }
 
 // Specify which field paths (using dot-separated strings)
-// should ignore the "omitempty" and "omitemptyupdate" tags.
+// should ignore the "omitempty" (including method-specific)
+// tags.
 //
 // This can be useful when zero values are needed only during
 // a specific method call.

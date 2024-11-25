@@ -62,7 +62,8 @@ func (c *CollectionRef[T]) Validate(ctx context.Context, data *T, opts ...Option
 	return err
 }
 
-// Create a Firestore document with provided data (after validation).
+// Create a Firestore document with provided data
+// (after validation).
 func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options) (string, error) {
 	if c == nil {
 		return "", errors.New("firevault: nil CollectionRef")
@@ -92,11 +93,12 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 	return id, nil
 }
 
-// Update all Firestore documents which match provided Query
-// (after data validation).
+// Update all Firestore documents which match
+// provided Query (after data validation).
 //
-// If Query contains an ID clause and no documents are matched,
-// a new document will be created for each provided ID.
+// If Query contains an ID clause and no documents
+// are matched, a new document will be created
+// for each provided ID.
 //
 // The operation is not atomic.
 func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opts ...Options) error {
@@ -122,7 +124,9 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 	})
 }
 
-// Delete all Firestore documents which match provided Query.
+// Delete all Firestore documents which match
+// provided Query.
+//
 // The operation is not atomic.
 func (c *CollectionRef[T]) Delete(ctx context.Context, query Query) error {
 	if c == nil {
@@ -135,7 +139,8 @@ func (c *CollectionRef[T]) Delete(ctx context.Context, query Query) error {
 	})
 }
 
-// Find all Firestore documents which match provided Query.
+// Find all Firestore documents which match
+// provided Query.
 func (c *CollectionRef[T]) Find(ctx context.Context, query Query) ([]Document[T], error) {
 	if c == nil {
 		return nil, errors.New("firevault: nil CollectionRef")
@@ -148,10 +153,12 @@ func (c *CollectionRef[T]) Find(ctx context.Context, query Query) ([]Document[T]
 	return c.fetchDocsByQuery(ctx, query)
 }
 
-// Find the first Firestore document which matches provided Query.
+// Find the first Firestore document which
+// matches provided Query.
 //
-// Returns an empty Document[T] (empty ID string and
-// zero-value T Data), and no error if no documents are found.
+// Returns an empty Document[T] (empty ID
+// string and zero-value T Data), and no error
+// if no documents are found.
 func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query) (Document[T], error) {
 	if c == nil {
 		return Document[T]{}, errors.New("firevault: nil CollectionRef")
@@ -182,7 +189,8 @@ func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query) (Document[T
 	return docs[0], nil
 }
 
-// Find number of Firestore documents which match provided Query.
+// Find number of Firestore documents which
+// match provided Query.
 func (c *CollectionRef[T]) Count(ctx context.Context, query Query) (int64, error) {
 	if c == nil {
 		return 0, errors.New("firevault: nil CollectionRef")
