@@ -28,7 +28,6 @@ func TestValidate(t *testing.T) {
 		data    interface{}
 		opts    validationOpts
 		wantErr bool
-		errMsg  string
 	}{
 		{
 			name: "Valid struct",
@@ -52,7 +51,6 @@ func TestValidate(t *testing.T) {
 			},
 			opts:    validationOpts{method: create},
 			wantErr: true,
-			errMsg:  "failed-validation",
 		},
 		{
 			name: "Invalid age (too young)",
@@ -64,7 +62,6 @@ func TestValidate(t *testing.T) {
 			},
 			opts:    validationOpts{method: create},
 			wantErr: true,
-			errMsg:  "failed-validation",
 		},
 		{
 			name: "Invalid email",
@@ -76,7 +73,6 @@ func TestValidate(t *testing.T) {
 			},
 			opts:    validationOpts{method: create},
 			wantErr: true,
-			errMsg:  "failed-validation",
 		},
 		{
 			name: "Missing required field",
@@ -87,7 +83,6 @@ func TestValidate(t *testing.T) {
 			},
 			opts:    validationOpts{method: create},
 			wantErr: true,
-			errMsg:  "failed-validation",
 		},
 		{
 			name: "Invalid nested struct",
@@ -99,7 +94,6 @@ func TestValidate(t *testing.T) {
 			},
 			opts:    validationOpts{method: create},
 			wantErr: true,
-			errMsg:  "failed-validation",
 		},
 		{
 			name: "Invalid tags (too many)",
@@ -112,7 +106,6 @@ func TestValidate(t *testing.T) {
 			},
 			opts:    validationOpts{method: create},
 			wantErr: true,
-			errMsg:  "failed-validation",
 		},
 	}
 
@@ -124,11 +117,9 @@ func TestValidate(t *testing.T) {
 				t.Errorf("validator.validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.wantErr {
-				fieldErr, ok := err.(*fieldError)
+				_, ok := err.(*fieldError)
 				if !ok {
 					t.Errorf("Expected *fieldError, got %T", err)
-				} else if fieldErr.code != tt.errMsg {
-					t.Errorf("Expected error code %s, got %s", tt.errMsg, fieldErr.code)
 				}
 			}
 		})

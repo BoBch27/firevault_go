@@ -262,14 +262,13 @@ func (v *validator) applyRules(
 		}
 
 		fe := &fieldError{
-			code:        "",
-			tag:         rule,
 			field:       fieldName,
 			structField: structFieldName,
 			value:       fieldValue.Interface(),
-			param:       "",
 			kind:        fieldValue.Kind(),
 			typ:         fieldValue.Type(),
+			tag:         rule,
+			param:       "",
 		}
 
 		if strings.HasPrefix(rule, "transform=") {
@@ -286,7 +285,6 @@ func (v *validator) applyRules(
 					fieldValue = reflect.ValueOf(newValue)
 				}
 			} else {
-				fe.code = "unknown-transformation"
 				return reflect.Value{}, fe
 			}
 		} else {
@@ -299,12 +297,10 @@ func (v *validator) applyRules(
 					return reflect.Value{}, err
 				}
 				if !ok {
-					fe.code = "failed-validation"
 					fe.param = param
 					return reflect.Value{}, fe
 				}
 			} else {
-				fe.code = "unknown-validation"
 				fe.param = param
 				return reflect.Value{}, fe
 			}
