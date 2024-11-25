@@ -10,13 +10,16 @@ import (
 // needed for error message creation.
 // It complies with the FieldError interface.
 type fieldError struct {
-	field       string
-	structField string
-	value       interface{}
-	kind        reflect.Kind
-	typ         reflect.Type
-	tag         string
-	param       string
+	field        string
+	structField  string
+	displayField string
+	path         string
+	structPath   string
+	value        interface{}
+	kind         reflect.Kind
+	typ          reflect.Type
+	tag          string
+	param        string
 }
 
 // A Firevault FieldError interface gives access
@@ -30,6 +33,21 @@ type FieldError interface {
 	// StructField returns the field's actual name
 	// from the struct.
 	StructField() string
+	// DisplayField returns the field's struct name
+	// in a human-readable form. It splits camel,
+	// pascal, and snake case names into
+	// space-separated words, including separating
+	// adjacent letters and numbers
+	// (e.g. "FirstName" -> "First Name").
+	DisplayField() string
+	// Path returns the field's dot-separated path,
+	// with the tag names taking precedence over the
+	// fields' struct names (e.g. "names.first").
+	Path() string
+	// StructPath returns the field's actual
+	// dot-separated path from the stuct
+	// (e.g. "Names.First").
+	StructPath() string
 	// Value returns the field's actual value.
 	Value() interface{}
 	// Kind returns the Value's reflect Kind
@@ -58,6 +76,30 @@ func (fe *fieldError) Field() string {
 // from the struct.
 func (fe *fieldError) StructField() string {
 	return fe.structField
+}
+
+// DisplayField returns the field's struct name
+// in a human-readable form. It splits camel,
+// pascal, and snake case names into
+// space-separated words, including separating
+// adjacent letters and numbers
+// (e.g. "FirstName" -> "First Name").
+func (fe *fieldError) DisplayField() string {
+	return fe.displayField
+}
+
+// Path returns the field's dot-separated path,
+// with the tag names taking precedence over the
+// fields' struct names (e.g. "names.first").
+func (fe *fieldError) Path() string {
+	return fe.path
+}
+
+// StructPath returns the field's actual
+// dot-separated path from the stuct
+// (e.g. "Names.First").
+func (fe *fieldError) StructPath() string {
+	return fe.structPath
 }
 
 // Value returns the field's actual value.

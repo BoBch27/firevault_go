@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -100,7 +101,7 @@ func (v *validator) validate(
 		return nil, errors.New("firevault: data must be a pointer to a struct")
 	}
 
-	dataMap, err := v.validateFields(ctx, rs, "", opts)
+	dataMap, err := v.validateFields(ctx, rs, "", "", opts)
 	return dataMap, err
 }
 
@@ -110,6 +111,7 @@ func (v *validator) validateFields(
 	ctx context.Context,
 	rs reflectedStruct,
 	path string,
+	structPath string,
 	opts validationOpts,
 ) (map[string]interface{}, error) {
 	// map which will hold all fields to pass to firestore
@@ -134,8 +136,9 @@ func (v *validator) validateFields(
 			fieldName = rules[0]
 		}
 
-		// get dot-separated field path
+		// get dot-separated field paths
 		fieldPath := v.getFieldPath(path, fieldName)
+		structFieldPath := v.getFieldPath(structPath, fieldType.Name)
 
 		// check if field is of supported type
 		err := v.validateFieldType(fieldValue, fieldPath)
@@ -167,6 +170,7 @@ func (v *validator) validateFields(
 				fieldPath,
 				fieldName,
 				fieldType.Name,
+				structFieldPath,
 				rules,
 				opts.method,
 			)
@@ -182,7 +186,7 @@ func (v *validator) validateFields(
 		}
 
 		// get the final value to be added to the data map
-		finalValue, err := v.processFinalValue(ctx, fieldValue, fieldPath, opts)
+		finalValue, err := v.processFinalValue(ctx, fieldValue, fieldPath, structFieldPath, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -200,6 +204,29 @@ func (v *validator) getFieldPath(path string, fieldName string) string {
 	}
 
 	return path + "." + fieldName
+}
+
+// get field struct name in a human-readable form
+func (v *validator) getDisplayName(fieldName string) string {
+	// handle snake case - replace underscores with spaces
+	fn := strings.ReplaceAll(fieldName, "_", " ")
+
+	// split camel and pascal case
+	fn = regexp.MustCompile(`([a-z])([A-Z])`).ReplaceAllStringFunc(fn, func(ns string) string {
+		return string(ns[0]) + " " + string(ns[1])
+	})
+
+	// check if string contains a number
+	if regexp.MustCompile(`\d`).MatchString(fn) {
+		fn = regexp.MustCompile(`([A-Z])([0-9])`).ReplaceAllStringFunc(fn, func(ns string) string {
+			return string(ns[0]) + " " + string(ns[1])
+		})
+		fn = regexp.MustCompile(`([a-z])([0-9])`).ReplaceAllStringFunc(fn, func(ns string) string {
+			return string(ns[0]) + " " + string(ns[1])
+		})
+	}
+
+	return fn
 }
 
 // check if field is of supported type and return error if not
@@ -250,6 +277,7 @@ func (v *validator) applyRules(
 	fieldPath string,
 	fieldName string,
 	structFieldName string,
+	structFieldPath string,
 	rules []string,
 	method methodType,
 ) (reflect.Value, error) {
@@ -262,11 +290,14 @@ func (v *validator) applyRules(
 		}
 
 		fe := &fieldError{
-			field:       fieldName,
-			structField: structFieldName,
-			value:       fieldValue.Interface(),
-			kind:        fieldValue.Kind(),
-			typ:         fieldValue.Type(),
+			field:        fieldName,
+			structField:  structFieldName,
+			displayField: v.getDisplayName(structFieldName),
+			path:         fieldPath,
+			structPath:   structFieldPath,
+			value:        fieldValue.Interface(),
+			kind:         fieldValue.Kind(),
+			typ:          fieldValue.Type(),
 		}
 
 		if strings.HasPrefix(rule, "transform=") {
@@ -316,15 +347,16 @@ func (v *validator) processFinalValue(
 	ctx context.Context,
 	fieldValue reflect.Value,
 	fieldPath string,
+	structFieldPath string,
 	opts validationOpts,
 ) (interface{}, error) {
 	switch fieldValue.Kind() {
 	case reflect.Struct:
-		return v.processStructValue(ctx, fieldValue, fieldPath, opts)
+		return v.processStructValue(ctx, fieldValue, fieldPath, structFieldPath, opts)
 	case reflect.Map:
-		return v.processMapValue(ctx, fieldValue, fieldPath, opts)
+		return v.processMapValue(ctx, fieldValue, fieldPath, structFieldPath, opts)
 	case reflect.Array, reflect.Slice:
-		return v.processSliceValue(ctx, fieldValue, fieldPath, opts)
+		return v.processSliceValue(ctx, fieldValue, fieldPath, structFieldPath, opts)
 	default:
 		return fieldValue.Interface(), nil
 	}
@@ -335,6 +367,7 @@ func (v *validator) processStructValue(
 	ctx context.Context,
 	fieldValue reflect.Value,
 	fieldPath string,
+	structFieldPath string,
 	opts validationOpts,
 ) (interface{}, error) {
 	// handle time.Time
@@ -346,6 +379,7 @@ func (v *validator) processStructValue(
 		ctx,
 		reflectedStruct{fieldValue.Type(), fieldValue},
 		fieldPath,
+		structFieldPath,
 		opts,
 	)
 }
@@ -355,6 +389,7 @@ func (v *validator) processMapValue(
 	ctx context.Context,
 	fieldValue reflect.Value,
 	fieldPath string,
+	structFieldPath string,
 	opts validationOpts,
 ) (interface{}, error) {
 	newMap := make(map[string]interface{})
@@ -365,8 +400,9 @@ func (v *validator) processMapValue(
 		val := iter.Value()
 
 		newFieldPath := fmt.Sprintf("%s.%v", fieldPath, key.Interface())
+		newStructFieldPath := fmt.Sprintf("%s.%v", structFieldPath, key.Interface())
 
-		processedValue, err := v.processFinalValue(ctx, val, newFieldPath, opts)
+		processedValue, err := v.processFinalValue(ctx, val, newFieldPath, newStructFieldPath, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -382,6 +418,7 @@ func (v *validator) processSliceValue(
 	ctx context.Context,
 	fieldValue reflect.Value,
 	fieldPath string,
+	structFieldPath string,
 	opts validationOpts,
 ) (interface{}, error) {
 	newSlice := make([]interface{}, fieldValue.Len())
@@ -389,8 +426,9 @@ func (v *validator) processSliceValue(
 	for i := 0; i < fieldValue.Len(); i++ {
 		val := fieldValue.Index(i)
 		newFieldPath := fmt.Sprintf("%s[%d]", fieldPath, i)
+		newStructFieldPath := fmt.Sprintf("%s[%d]", structFieldPath, i)
 
-		processedValue, err := v.processFinalValue(ctx, val, newFieldPath, opts)
+		processedValue, err := v.processFinalValue(ctx, val, newFieldPath, newStructFieldPath, opts)
 		if err != nil {
 			return nil, err
 		}
