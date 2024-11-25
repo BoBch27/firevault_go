@@ -74,3 +74,24 @@ func (c *Connection) RegisterTransformation(name string, transformation Transfor
 
 	return c.validator.registerTransformation(name, transformation)
 }
+
+// Register a new error formatter.
+//
+// Error formatters are used to generate a custom,
+// user-friendly error message, whenever a
+// FieldError is created (during a failed validation).
+//
+// If none are registered, or if a formatter returns
+// a nil error, an instance of a FieldError will be
+// returned instead.
+//
+// Registering error formatters is not thread-safe;
+// it is intended that all such functions
+// be registered, prior to any validation.
+func (c *Connection) RegisterErrorFormatter(errorFormatter ErrorFormatterFn) error {
+	if c == nil {
+		return errors.New("firevault: nil Connection")
+	}
+	
+	return c.validator.registerErrorFormatter(errorFormatter)
+}

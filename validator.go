@@ -19,13 +19,26 @@ type ValidationFn func(ctx context.Context, path string, value reflect.Value, pa
 // during a transformation.
 type TransformationFn func(ctx context.Context, path string, value reflect.Value) (interface{}, error)
 
+// An ErrorFormatterFn is the function that's executed
+// to generate a custom, user-friendly error message,
+// based on FieldError's fields.
+//
+// If the function returns a nil error, an instance
+// of FieldError will be returned instead.
+type ErrorFormatterFn func(fe FieldError) error
+
 type validator struct {
 	validations     map[string]ValidationFn
 	transformations map[string]TransformationFn
+	errFormatters   []ErrorFormatterFn
 }
 
 func newValidator() *validator {
-	validator := &validator{make(map[string]ValidationFn), make(map[string]TransformationFn)}
+	validator := &validator{
+		make(map[string]ValidationFn),
+		make(map[string]TransformationFn),
+		make([]ErrorFormatterFn, 0),
+	}
 
 	// Register predefined validators
 	for k, v := range builtInValidators {
@@ -69,6 +82,20 @@ func (v *validator) registerTransformation(name string, transformation Transform
 	}
 
 	v.transformations[name] = transformation
+	return nil
+}
+
+// register an error formatter
+func (v *validator) registerErrorFormatter(errFormatter ErrorFormatterFn) error {
+	if v == nil {
+		return errors.New("firevault: nil validator")
+	}
+
+	if errFormatter == nil {
+		return fmt.Errorf("firevault: error formatter function cannot be empty")
+	}
+
+	v.errFormatters = append(v.errFormatters, errFormatter)
 	return nil
 }
 
@@ -316,7 +343,7 @@ func (v *validator) applyRules(
 					fieldValue = reflect.ValueOf(newValue)
 				}
 			} else {
-				return reflect.Value{}, fe
+				return reflect.Value{}, v.formatErr(fe)
 			}
 		} else {
 			// get param value if present
@@ -331,10 +358,10 @@ func (v *validator) applyRules(
 					return reflect.Value{}, err
 				}
 				if !ok {
-					return reflect.Value{}, fe
+					return reflect.Value{}, v.formatErr(fe)
 				}
 			} else {
-				return reflect.Value{}, fe
+				return reflect.Value{}, v.formatErr(fe)
 			}
 		}
 	}
@@ -451,4 +478,16 @@ func (v *validator) parseTag(tag string) []string {
 	}
 
 	return validatedRules
+}
+
+// format fieldError
+func (v *validator) formatErr(fe *fieldError) error {
+	for _, formatter := range v.errFormatters {
+		err := formatter(fe)
+		if err != nil {
+			return err
+		}
+	}
+
+	return fe
 }
