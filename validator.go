@@ -267,12 +267,12 @@ func (v *validator) applyRules(
 			value:       fieldValue.Interface(),
 			kind:        fieldValue.Kind(),
 			typ:         fieldValue.Type(),
-			tag:         rule,
-			param:       "",
 		}
 
 		if strings.HasPrefix(rule, "transform=") {
 			transName := strings.TrimPrefix(rule, "transform=")
+
+			fe.tag = transName
 
 			if transformation, ok := v.transformations[transName]; ok {
 				newValue, err := transformation(ctx, fieldPath, fieldValue)
@@ -291,17 +291,18 @@ func (v *validator) applyRules(
 			// get param value if present
 			rule, param, _ := strings.Cut(rule, "=")
 
+			fe.tag = rule
+			fe.param = param
+
 			if validation, ok := v.validations[rule]; ok {
 				ok, err := validation(ctx, fieldPath, fieldValue, param)
 				if err != nil {
 					return reflect.Value{}, err
 				}
 				if !ok {
-					fe.param = param
 					return reflect.Value{}, fe
 				}
 			} else {
-				fe.param = param
 				return reflect.Value{}, fe
 			}
 		}
