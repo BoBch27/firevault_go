@@ -13,11 +13,11 @@ import (
 
 // A ValidationFn is the function that's executed
 // during a validation.
-type ValidationFn func(ctx context.Context, path string, value reflect.Value, param string) (bool, error)
+type ValidationFn func(ctx context.Context, fs FieldScope) (bool, error)
 
 // A TransformationFn is the function that's executed
 // during a transformation.
-type TransformationFn func(ctx context.Context, path string, value reflect.Value) (interface{}, error)
+type TransformationFn func(ctx context.Context, fs FieldScope) (interface{}, error)
 
 // An ErrorFormatterFn is the function that's executed
 // to generate a custom, user-friendly error message,
@@ -116,8 +116,9 @@ func (v *validator) validate(
 	}
 
 	rs := reflectedStruct{reflect.TypeOf(data), reflect.ValueOf(data)}
+	rsValKind := rs.values.Kind()
 
-	if rs.values.Kind() != reflect.Pointer && rs.values.Kind() != reflect.Ptr {
+	if rsValKind != reflect.Pointer && rsValKind != reflect.Ptr {
 		return nil, errors.New("firevault: data must be a pointer to a struct")
 	}
 
@@ -148,7 +149,16 @@ func (v *validator) validateFields(
 	for i := 0; i < rs.values.NumField(); i++ {
 		fieldValue := rs.values.Field(i)
 		fieldType := rs.types.Field(i)
-		fieldName := fieldType.Name
+
+		fs := &fieldScope{
+			strct:        rs.values,
+			field:        fieldType.Name,
+			structField:  fieldType.Name,
+			displayField: v.getDisplayName(fieldType.Name),
+			value:        fieldValue,
+			kind:         fieldValue.Kind(),
+			typ:          fieldType.Type,
+		}
 
 		tag := fieldType.Tag.Get("firevault")
 
@@ -160,21 +170,21 @@ func (v *validator) validateFields(
 
 		// use first tag rule as new field name, if not empty
 		if rules[0] != "" {
-			fieldName = rules[0]
+			fs.field = rules[0]
 		}
 
-		// get dot-separated field paths
-		fieldPath := v.getFieldPath(path, fieldName)
-		structFieldPath := v.getFieldPath(structPath, fieldType.Name)
+		// get dot-separated field and struct path
+		fs.path = v.getFieldPath(path, fs.field)
+		fs.structPath = v.getFieldPath(structPath, fs.structField)
 
 		// check if field is of supported type
-		err := v.validateFieldType(fieldValue, fieldPath)
+		err := v.validateFieldType(fs.value, fs.path)
 		if err != nil {
 			return nil, err
 		}
 
 		// check if field should be skipped based on provided tags
-		if v.shouldSkipField(fieldValue, fieldPath, rules, opts) {
+		if v.shouldSkipField(fs.value, fs.path, rules, opts) {
 			continue
 		}
 
@@ -182,43 +192,35 @@ func (v *validator) validateFields(
 		rules = v.cleanRules(rules)
 
 		// get pointer value, only if it's not nil
-		if fieldValue.Kind() == reflect.Pointer || fieldValue.Kind() == reflect.Ptr {
-			if !fieldValue.IsNil() {
-				fieldValue = fieldValue.Elem()
+		if fs.kind == reflect.Pointer || fs.kind == reflect.Ptr {
+			if !fs.value.IsNil() {
+				fs.value = fs.value.Elem()
+				fs.kind = fs.value.Kind()
+				fs.typ = fs.value.Type()
 			}
 		}
 
 		// apply rules (both transformations and validations)
 		// unless skipped using options
 		if !opts.skipValidation {
-			newFieldValue, err := v.applyRules(
-				ctx,
-				fieldValue,
-				fieldPath,
-				fieldName,
-				fieldType.Name,
-				structFieldPath,
-				rules,
-				opts.method,
-			)
+			err := v.applyRules(ctx, fs, rules, opts.method)
 			if err != nil {
 				return nil, err
 			}
 
 			// set original struct's field value if changed
-			if newFieldValue != fieldValue {
-				rs.values.Field(i).Set(newFieldValue)
-				fieldValue = newFieldValue
+			if fieldValue != fs.value {
+				rs.values.Field(i).Set(fs.value)
 			}
 		}
 
 		// get the final value to be added to the data map
-		finalValue, err := v.processFinalValue(ctx, fieldValue, fieldPath, structFieldPath, opts)
+		finalValue, err := v.processFinalValue(ctx, fs, opts)
 		if err != nil {
 			return nil, err
 		}
 
-		dataMap[fieldName] = finalValue
+		dataMap[fs.field] = finalValue
 	}
 
 	return dataMap, nil
@@ -300,113 +302,110 @@ func (v *validator) cleanRules(rules []string) []string {
 // validate field based on rules
 func (v *validator) applyRules(
 	ctx context.Context,
-	fieldValue reflect.Value,
-	fieldPath string,
-	fieldName string,
-	structFieldName string,
-	structFieldPath string,
+	fs *fieldScope,
 	rules []string,
 	method methodType,
-) (reflect.Value, error) {
+) error {
 	for _, rule := range rules {
 		// skip processing if the field is empty and it's not a required rule
 		requiredMethodTag := string("required" + method)
 		isRequiredRule := rule == "required" || rule == requiredMethodTag
-		if !hasValue(fieldValue) && !isRequiredRule {
+		if !hasValue(fs.value) && !isRequiredRule {
 			continue
 		}
 
 		fe := &fieldError{
-			field:        fieldName,
-			structField:  structFieldName,
-			displayField: v.getDisplayName(structFieldName),
-			path:         fieldPath,
-			structPath:   structFieldPath,
-			value:        fieldValue.Interface(),
-			kind:         fieldValue.Kind(),
-			typ:          fieldValue.Type(),
+			field:        fs.field,
+			structField:  fs.structField,
+			displayField: fs.displayField,
+			path:         fs.path,
+			structPath:   fs.structPath,
+			value:        fs.value.Interface(),
+			kind:         fs.kind,
+			typ:          fs.typ,
 		}
 
 		if strings.HasPrefix(rule, "transform=") {
 			transName := strings.TrimPrefix(rule, "transform=")
 
 			fe.tag = transName
+			fs.tag = transName
 
 			if transformation, ok := v.transformations[transName]; ok {
-				newValue, err := transformation(ctx, fieldPath, fieldValue)
+				newValue, err := transformation(ctx, fs)
 				if err != nil {
-					return reflect.Value{}, err
+					return err
 				}
 
 				// check if rule returned a new value and assign it
-				if newValue != nil {
-					fieldValue = reflect.ValueOf(newValue)
+				if newValue != fs.value.Interface() {
+					fs.value = reflect.ValueOf(newValue)
+					fs.kind = fs.value.Kind()
+					fs.typ = fs.value.Type()
 				}
 			} else {
-				return reflect.Value{}, v.formatErr(fe)
+				return v.formatErr(fe)
 			}
 		} else {
 			// get param value if present
 			rule, param, _ := strings.Cut(rule, "=")
 
 			fe.tag = rule
+			fs.tag = rule
 			fe.param = param
+			fs.param = param
 
 			if validation, ok := v.validations[rule]; ok {
-				ok, err := validation(ctx, fieldPath, fieldValue, param)
+				ok, err := validation(ctx, fs)
 				if err != nil {
-					return reflect.Value{}, err
+					return err
 				}
 				if !ok {
-					return reflect.Value{}, v.formatErr(fe)
+					return v.formatErr(fe)
 				}
 			} else {
-				return reflect.Value{}, v.formatErr(fe)
+				return v.formatErr(fe)
 			}
 		}
 	}
 
-	return fieldValue, nil
+	return nil
 }
 
 // get final field value based on field's type
 func (v *validator) processFinalValue(
 	ctx context.Context,
-	fieldValue reflect.Value,
-	fieldPath string,
-	structFieldPath string,
+	fs *fieldScope,
 	opts validationOpts,
 ) (interface{}, error) {
-	switch fieldValue.Kind() {
+	switch fs.kind {
 	case reflect.Struct:
-		return v.processStructValue(ctx, fieldValue, fieldPath, structFieldPath, opts)
+		return v.processStructValue(ctx, fs, opts)
 	case reflect.Map:
-		return v.processMapValue(ctx, fieldValue, fieldPath, structFieldPath, opts)
+		return v.processMapValue(ctx, fs, opts)
 	case reflect.Array, reflect.Slice:
-		return v.processSliceValue(ctx, fieldValue, fieldPath, structFieldPath, opts)
+		return v.processSliceValue(ctx, fs, opts)
 	default:
-		return fieldValue.Interface(), nil
+		return fs.value.Interface(), nil
 	}
 }
 
 // get value if field is a struct
 func (v *validator) processStructValue(
 	ctx context.Context,
-	fieldValue reflect.Value,
-	fieldPath string,
-	structFieldPath string,
+	fs *fieldScope,
 	opts validationOpts,
 ) (interface{}, error) {
 	// handle time.Time
-	if fieldValue.Type() == reflect.TypeOf(time.Time{}) {
-		return fieldValue.Interface().(time.Time), nil
+	if fs.typ == reflect.TypeOf(time.Time{}) {
+		return fs.value.Interface().(time.Time), nil
 	}
 
 	return v.validateFields(
 		ctx,
-		reflectedStruct{fieldValue.Type(), fieldValue},
-		fieldPath,
-		structFieldPath,
+		reflectedStruct{fs.typ, fs.value},
+		fs.path,
+		fs.structPath,
 		opts,
 	)
 }
@@ -414,22 +413,28 @@ func (v *validator) processStructValue(
 // get value if field is a map
 func (v *validator) processMapValue(
 	ctx context.Context,
-	fieldValue reflect.Value,
-	fieldPath string,
-	structFieldPath string,
+	fs *fieldScope,
 	opts validationOpts,
 ) (interface{}, error) {
 	newMap := make(map[string]interface{})
-	iter := fieldValue.MapRange()
+	iter := fs.value.MapRange()
 
 	for iter.Next() {
 		key := iter.Key()
 		val := iter.Value()
 
-		newFieldPath := fmt.Sprintf("%s.%v", fieldPath, key.Interface())
-		newStructFieldPath := fmt.Sprintf("%s.%v", structFieldPath, key.Interface())
+		newFs := &fieldScope{
+			strct:       fs.strct,
+			field:       key.String(),
+			structField: key.String(),
+			path:        fmt.Sprintf("%s.%v", fs.path, key.Interface()),
+			structPath:  fmt.Sprintf("%s.%v", fs.structPath, key.Interface()),
+			value:       val,
+			kind:        val.Kind(),
+			typ:         val.Type(),
+		}
 
-		processedValue, err := v.processFinalValue(ctx, val, newFieldPath, newStructFieldPath, opts)
+		processedValue, err := v.processFinalValue(ctx, newFs, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -443,19 +448,26 @@ func (v *validator) processMapValue(
 // get value if field is a slice/array
 func (v *validator) processSliceValue(
 	ctx context.Context,
-	fieldValue reflect.Value,
-	fieldPath string,
-	structFieldPath string,
+	fs *fieldScope,
 	opts validationOpts,
 ) (interface{}, error) {
-	newSlice := make([]interface{}, fieldValue.Len())
+	newSlice := make([]interface{}, fs.value.Len())
 
-	for i := 0; i < fieldValue.Len(); i++ {
-		val := fieldValue.Index(i)
-		newFieldPath := fmt.Sprintf("%s[%d]", fieldPath, i)
-		newStructFieldPath := fmt.Sprintf("%s[%d]", structFieldPath, i)
+	for i := 0; i < fs.value.Len(); i++ {
+		val := fs.value.Index(i)
 
-		processedValue, err := v.processFinalValue(ctx, val, newFieldPath, newStructFieldPath, opts)
+		newFs := &fieldScope{
+			strct:       fs.strct,
+			field:       fmt.Sprintf("[%d]", i),
+			structField: fmt.Sprintf("[%d]", i),
+			path:        fmt.Sprintf("%s[%d]", fs.path, i),
+			structPath:  fmt.Sprintf("%s[%d]", fs.structPath, i),
+			value:       val,
+			kind:        val.Kind(),
+			typ:         val.Type(),
+		}
+
+		processedValue, err := v.processFinalValue(ctx, newFs, opts)
 		if err != nil {
 			return nil, err
 		}
