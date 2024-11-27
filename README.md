@@ -97,12 +97,10 @@ Firevault validates fields' values based on the defined rules. There are built-i
 - To define a custom validation, use `Connection`'s `RegisterValidation` method.
 	- *Expects*:
 		- name: A `string` defining the validation name
-		- func: A function of type `ValidationFn`. The passed in function accepts four parameters.
+		- func: A function of type `ValidationFn`. The passed in function accepts two parameters.
 			- *Expects*:
 				- ctx: A context.
-				- path: A `string` which contains the field's path (using dot-separation).
-				- value: A `reflect.Value` of the field.
-				- param: A `string` which will be validated against.
+				- fs: A value that implements the `FieldScope` interface, which gives access to different field data, useful during the validation. Available methods for `FieldScope` can be found in the `field_scope.go` file.
 			- *Returns*:
 				- result: A `bool` which returns `true` if check has passed, and `false` if it hasn't.
 				- error: An `error` in case something went wrong during the check.
@@ -112,12 +110,12 @@ Firevault validates fields' values based on the defined rules. There are built-i
 ```go
 connection.RegisterValidation(
 	"is_upper", 
-	func(_ context.Context, _ string, value reflect.Value, _ string) (bool, error) {
-		if value.Kind() != reflect.String {
+	func(_ context.Context, fs FieldScope) (bool, error) {
+		if fs.Kind() != reflect.String {
 			return false, nil
 		}
 
-		s := value.String()
+		s := fs.Value().String()
 		return s == strings.toUpper(s), nil
 	},
 )
@@ -138,13 +136,12 @@ Firevault also supports rules that transform the field's value. To use them, it'
 - To define a transformation, use `Connection`'s `RegisterTransformation` method.
 	- *Expects*:
 		- name: A `string` defining the validation name
-		- func: A function of type `TransformationFn`. The passed in function accepts three parameters.
+		- func: A function of type `TransformationFn`. The passed in function accepts two parameters.
 			- *Expects*: 
 				- ctx: A context.
-				- path: A `string` which contains the field's path (using dot-separation).
-				- value: A `reflect.Value` of the field.
+				- fs: A value that implements the `FieldScope` interface, which gives access to different field data, useful during the transformation. Available methods for `FieldScope` can be found in the `field_scope.go` file.
 			- *Returns*:
-				- result: An `interface{}` with the new value.
+				- result: An `interface{}` with the new, transformed, value.
 				- error: An `error` in case something went wrong during the transformation.
 
 *Registering custom transformations is not thread-safe. It is intended that all rules be registered, prior to any validation. Also, if a rule with the same name already exists, the previous one will be replaced.*
@@ -152,16 +149,12 @@ Firevault also supports rules that transform the field's value. To use them, it'
 ```go
 connection.RegisterTransformation(
 	"to_lower", 
-	func(_ context.Context, path string, value reflect.Value) (interface{}, error) {
-		if value.Kind() != reflect.String {
-			return value.Interface(), errors.New(path + " must be a string")
+	func(_ context.Context, fs FieldScope) (interface{}, error) {
+		if fs.Kind() != reflect.String {
+			return fs.Value().Interface(), errors.New(fs.StructField() + " must be a string")
 		}
 
-		if value.String() != "" {
-			return strings.ToLower(value.String()), nil
-		}
-
-		return value.String(), nil
+		return strings.ToLower(fs.Value().String()), nil
 	},
 )
 ```
@@ -172,7 +165,14 @@ You can then chain the tag like a normal one, but don't forget to use the `trans
 
 ```go
 type User struct {
+	// transformation will take place after all validations have passed
 	Email string `firevault:"email,required,email,transform=to_lower,omitempty"`
+}
+```
+```go
+type User struct {
+	// the "email" validation will be executed on the new value
+	Email string `firevault:"email,required,transform=to_lower,email,omitempty"`
 }
 ```
 
@@ -456,7 +456,7 @@ newQuery := query.ID("6QVHL46WCE680ZG2Xn3X")
 	- *Expects*:
 		- path: A `string` which can be a single field or a dot-separated sequence of fields.
 		- operator: A `string` which must be one of `==`, `!=`, `<`, `<=`, `>`, `>=`, `array-contains`, `array-contains-any`, `in` or `not-in`.
-		- value: An `interface{}` used to filter out the results.
+		- value: An `interface{}` value used to filter out the results.
 	- *Returns*:
 		- A new `Query` instance.
 ```go
@@ -575,7 +575,7 @@ newOptions := options.CustomID("custom-id")
 
 Custom Errors
 ------------
-During collection methods which require validation (i.e. `Create`, `Update` and `Validate`), Firevault may return an error of a `FieldError` interface, which can aid in presenting custom error messages to users. All other errors are of the usual `error` type. Available methods for `FieldError` can be found in the `field_error.go` file. 
+During collection methods which require validation (i.e. `Create`, `Update` and `Validate`), Firevault may return an error that implements the `FieldError` interface, which can aid in presenting custom error messages to users. All other errors are of the usual `error` type, and do not satisfy the the interface. Available methods for `FieldError` can be found in the `field_error.go` file. 
 
 Firevault supports the creation of custom, user-friendly, error messages, through `ErrorFormatterFn`. These are run whenever a `FieldError` is created (i.e. whenever a validation rule fails). All registered formatters are executed on the `FieldError` and if all return a nil error (or there's no registered formatters), a `FieldError` is returned instead. Otherwise, the first custom error is returned.
 
