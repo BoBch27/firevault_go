@@ -158,7 +158,16 @@ func TestIndividualValidations(t *testing.T) {
 				t.Fatalf("Validation rule %s not found", tt.rule)
 			}
 
-			valid, err := validator(context.Background(), "test", reflect.ValueOf(tt.value), tt.param)
+			value := reflect.ValueOf(tt.value)
+			fs := &fieldScope{
+				path:  "test",
+				value: value,
+				kind:  value.Kind(),
+				typ:   value.Type(),
+				param: tt.param,
+			}
+
+			valid, err := validator(context.Background(), fs)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
@@ -180,12 +189,9 @@ func TestCustomRules(t *testing.T) {
 	v := newValidator()
 
 	// Custom validation rule
-	err := v.registerValidation(
-		"custom",
-		func(ctx context.Context, path string, value reflect.Value, param string) (bool, error) {
-			return value.String() == "custom", nil
-		},
-	)
+	err := v.registerValidation("custom", func(ctx context.Context, fs FieldScope) (bool, error) {
+		return fs.Value().String() == "custom", nil
+	})
 	if err != nil {
 		t.Fatalf("Failed to register custom validation: %v", err)
 	}
@@ -193,8 +199,8 @@ func TestCustomRules(t *testing.T) {
 	// Custom transformation rule
 	err = v.registerTransformation(
 		"uppercase",
-		func(ctx context.Context, path string, value reflect.Value) (interface{}, error) {
-			return strings.ToUpper(value.String()), nil
+		func(ctx context.Context, fs FieldScope) (interface{}, error) {
+			return strings.ToUpper(fs.Value().String()), nil
 		},
 	)
 	if err != nil {
@@ -369,12 +375,7 @@ func TestRegisterValidation(t *testing.T) {
 		{
 			name:    "Valid registration",
 			valName: "test_validation",
-			validation: func(
-				ctx context.Context,
-				path string,
-				value reflect.Value,
-				param string,
-			) (bool, error) {
+			validation: func(ctx context.Context, fs FieldScope) (bool, error) {
 				return true, nil
 			},
 			wantErr: false,
@@ -382,12 +383,7 @@ func TestRegisterValidation(t *testing.T) {
 		{
 			name:    "Empty name",
 			valName: "",
-			validation: func(
-				ctx context.Context,
-				path string,
-				value reflect.Value,
-				param string,
-			) (bool, error) {
+			validation: func(ctx context.Context, fs FieldScope) (bool, error) {
 				return true, nil
 			},
 			wantErr: true,
@@ -422,24 +418,16 @@ func TestRegisterTransformation(t *testing.T) {
 		{
 			name:      "Valid registration",
 			transName: "test_transformation",
-			transformation: func(
-				ctx context.Context,
-				path string,
-				value reflect.Value,
-			) (interface{}, error) {
-				return value.Interface(), nil
+			transformation: func(ctx context.Context, fs FieldScope) (interface{}, error) {
+				return fs.Value().Interface(), nil
 			},
 			wantErr: false,
 		},
 		{
 			name:      "Empty name",
 			transName: "",
-			transformation: func(
-				ctx context.Context,
-				path string,
-				value reflect.Value,
-			) (interface{}, error) {
-				return value.Interface(), nil
+			transformation: func(ctx context.Context, fs FieldScope) (interface{}, error) {
+				return fs.Value().Interface(), nil
 			},
 			wantErr: true,
 		},

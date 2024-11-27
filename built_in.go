@@ -39,128 +39,124 @@ func hasValue(fieldValue reflect.Value) bool {
 }
 
 // validates if field is zero
-func validateRequired(_ context.Context, _ string, fieldValue reflect.Value, _ string) (bool, error) {
-	return hasValue(fieldValue), nil
+func validateRequired(_ context.Context, fs FieldScope) (bool, error) {
+	return hasValue(fs.Value()), nil
 }
 
 // validates if field is a valid email address
-func validateEmail(_ context.Context, _ string, fieldValue reflect.Value, _ string) (bool, error) {
+func validateEmail(_ context.Context, fs FieldScope) (bool, error) {
 	emailRegex := regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+(?:\\.([a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+)*)|(?:(?:\\x22)(?:(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(?:\\x20|\\x09)+)?(?:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]|\\x21|[\\x23-\\x5b]|[\\x5d-\\x7e]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[\\x01-\\x09\\x0b\\x0c\\x0d-\\x7f]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}]))))*(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(\\x20|\\x09)+)?(?:\\x22))))@(?:(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.)+(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.?$")
-	return emailRegex.MatchString(fieldValue.String()), nil
+	return emailRegex.MatchString(fs.Value().String()), nil
 }
 
 // validates if field's value is less than or equal to param's value
 func validateMax(
 	_ context.Context,
-	fieldPath string,
-	fieldValue reflect.Value,
-	param string,
+	fs FieldScope,
 ) (bool, error) {
-	if param == "" {
-		return false, errors.New("firevault: provide a max param - " + fieldPath)
+	if fs.Param() == "" {
+		return false, errors.New("firevault: provide a max param - " + fs.Path())
 	}
 
-	switch fieldValue.Kind() {
+	switch fs.Kind() {
 	case reflect.String, reflect.Slice, reflect.Array, reflect.Map:
-		i, err := asInt(param)
+		i, err := asInt(fs.Param())
 		if err != nil {
 			return false, err
 		}
 
-		return fieldValue.Len() <= int(i), nil
+		return fs.Value().Len() <= int(i), nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i, err := asInt(param)
+		i, err := asInt(fs.Param())
 		if err != nil {
 			return false, err
 		}
 
-		return fieldValue.Int() <= i, nil
+		return fs.Value().Int() <= i, nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		u, err := asUint(param)
+		u, err := asUint(fs.Param())
 		if err != nil {
 			return false, err
 		}
 
-		return fieldValue.Uint() <= u, nil
+		return fs.Value().Uint() <= u, nil
 	case reflect.Float32, reflect.Float64:
-		f, err := asFloat(param)
+		f, err := asFloat(fs.Param())
 		if err != nil {
 			return false, err
 		}
 
-		return fieldValue.Float() <= f, nil
+		return fs.Value().Float() <= f, nil
 	case reflect.Struct:
 		timeType := reflect.TypeOf(time.Time{})
 
-		if fieldValue.Type().ConvertibleTo(timeType) {
-			max, err := asTime(param)
+		if fs.Type().ConvertibleTo(timeType) {
+			max, err := asTime(fs.Param())
 			if err != nil {
 				return false, nil
 			}
 
-			t := fieldValue.Convert(timeType).Interface().(time.Time)
+			t := fs.Value().Convert(timeType).Interface().(time.Time)
 
 			return t.Before(max), nil
 		}
 	}
 
-	return false, errors.New("firevault: invalid field type - " + fieldPath)
+	return false, errors.New("firevault: invalid field type - " + fs.Path())
 }
 
 // validates if field's value is greater than or equal to param's value
 func validateMin(
 	_ context.Context,
-	fieldPath string,
-	fieldValue reflect.Value,
-	param string,
+	fs FieldScope,
 ) (bool, error) {
-	if param == "" {
-		return false, errors.New("firevault: provide a min param - " + fieldPath)
+	if fs.Param() == "" {
+		return false, errors.New("firevault: provide a min param - " + fs.Path())
 	}
 
-	switch fieldValue.Kind() {
+	switch fs.Kind() {
 	case reflect.String, reflect.Slice, reflect.Array, reflect.Map:
-		i, err := asInt(param)
+		i, err := asInt(fs.Param())
 		if err != nil {
 			return false, err
 		}
 
-		return fieldValue.Len() >= int(i), nil
+		return fs.Value().Len() >= int(i), nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i, err := asInt(param)
+		i, err := asInt(fs.Param())
 		if err != nil {
 			return false, err
 		}
 
-		return fieldValue.Int() >= i, nil
+		return fs.Value().Int() >= i, nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		u, err := asUint(param)
+		u, err := asUint(fs.Param())
 		if err != nil {
 			return false, err
 		}
 
-		return fieldValue.Uint() >= u, nil
+		return fs.Value().Uint() >= u, nil
 	case reflect.Float32, reflect.Float64:
-		f, err := asFloat(param)
+		f, err := asFloat(fs.Param())
 		if err != nil {
 			return false, err
 		}
 
-		return fieldValue.Float() >= f, nil
+		return fs.Value().Float() >= f, nil
 	case reflect.Struct:
 		timeType := reflect.TypeOf(time.Time{})
 
-		if fieldValue.Type().ConvertibleTo(timeType) {
-			min, err := asTime(param)
+		if fs.Type().ConvertibleTo(timeType) {
+			min, err := asTime(fs.Param())
 			if err != nil {
 				return false, err
 			}
 
-			t := fieldValue.Convert(timeType).Interface().(time.Time)
+			t := fs.Value().Convert(timeType).Interface().(time.Time)
 
 			return t.After(min), nil
 		}
 	}
 
-	return false, errors.New("firevault: invalid field type - " + fieldPath)
+	return false, errors.New("firevault: invalid field type - " + fs.Path())
 }
