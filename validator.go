@@ -414,7 +414,7 @@ func (v *validator) processMapValue(
 	ctx context.Context,
 	fs *fieldScope,
 	opts validationOpts,
-) (interface{}, error) {
+) (map[string]interface{}, error) {
 	newMap := make(map[string]interface{})
 	iter := fs.value.MapRange()
 
@@ -449,7 +449,7 @@ func (v *validator) processSliceValue(
 	ctx context.Context,
 	fs *fieldScope,
 	opts validationOpts,
-) (interface{}, error) {
+) ([]interface{}, error) {
 	newSlice := make([]interface{}, fs.value.Len())
 
 	for i := 0; i < fs.value.Len(); i++ {
