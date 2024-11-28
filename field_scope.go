@@ -6,17 +6,16 @@ import "reflect"
 // information to help validate it.
 // It complies with the FieldScope interface.
 type fieldScope struct {
-	strct        reflect.Value
-	field        string
-	structField  string
-	displayField string
-	path         string
-	structPath   string
-	value        reflect.Value
-	kind         reflect.Kind
-	typ          reflect.Type
-	tag          string
-	param        string
+	strct       reflect.Value
+	field       string
+	structField string
+	path        string
+	structPath  string
+	value       reflect.Value
+	kind        reflect.Kind
+	typ         reflect.Type
+	tag         string
+	param       string
 }
 
 // A Firevault FieldScope interface gives access
@@ -31,13 +30,6 @@ type FieldScope interface {
 	// StructField returns the field's actual name
 	// from the struct.
 	StructField() string
-	// DisplayField returns the field's struct name
-	// in a human-readable form. It splits camel,
-	// pascal, and snake case names into
-	// space-separated words, including separating
-	// adjacent letters and numbers
-	// (e.g. "FirstName" -> "First Name").
-	DisplayField() string
 	// Path returns the field's dot-separated path,
 	// with the tag names taking precedence over the
 	// fields' actual names (e.g. "names.first").
@@ -78,16 +70,6 @@ func (fs *fieldScope) Field() string {
 // from the struct.
 func (fs *fieldScope) StructField() string {
 	return fs.structField
-}
-
-// DisplayField returns the field's struct name
-// in a human-readable form. It splits camel,
-// pascal, and snake case names into
-// space-separated words, including separating
-// adjacent letters and numbers
-// (e.g. "FirstName" -> "First Name").
-func (fs *fieldScope) DisplayField() string {
-	return fs.displayField
 }
 
 // Path returns the field's dot-separated path,

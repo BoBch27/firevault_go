@@ -181,13 +181,12 @@ func (v *validator) processField(
 	}
 
 	fs := &fieldScope{
-		strct:        rs.values,
-		field:        fieldType.Name,
-		structField:  fieldType.Name,
-		displayField: v.getDisplayName(fieldType.Name),
-		value:        fieldValue,
-		kind:         fieldValue.Kind(),
-		typ:          fieldType.Type,
+		strct:       rs.values,
+		field:       fieldType.Name,
+		structField: fieldType.Name,
+		value:       fieldValue,
+		kind:        fieldValue.Kind(),
+		typ:         fieldType.Type,
 	}
 
 	rules := v.parseTag(tag)
@@ -255,29 +254,6 @@ func (v *validator) getFieldPath(path string, fieldName string) string {
 	return path + "." + fieldName
 }
 
-// get field struct name in a human-readable form
-func (v *validator) getDisplayName(fieldName string) string {
-	// handle snake case - replace underscores with spaces
-	fn := strings.ReplaceAll(fieldName, "_", " ")
-
-	// split camel and pascal case
-	fn = regexp.MustCompile(`([a-z])([A-Z])`).ReplaceAllStringFunc(fn, func(ns string) string {
-		return string(ns[0]) + " " + string(ns[1])
-	})
-
-	// check if string contains a number
-	if regexp.MustCompile(`\d`).MatchString(fn) {
-		fn = regexp.MustCompile(`([A-Z])([0-9])`).ReplaceAllStringFunc(fn, func(ns string) string {
-			return string(ns[0]) + " " + string(ns[1])
-		})
-		fn = regexp.MustCompile(`([a-z])([0-9])`).ReplaceAllStringFunc(fn, func(ns string) string {
-			return string(ns[0]) + " " + string(ns[1])
-		})
-	}
-
-	return fn
-}
-
 // check if field is of supported type and return error if not
 func (v *validator) validateFieldType(fieldKind reflect.Kind, fieldPath string) error {
 	if !isSupported(fieldKind) {
@@ -334,14 +310,13 @@ func (v *validator) applyRules(
 		}
 
 		fe := &fieldError{
-			field:        fs.field,
-			structField:  fs.structField,
-			displayField: fs.displayField,
-			path:         fs.path,
-			structPath:   fs.structPath,
-			value:        fs.value.Interface(),
-			kind:         fs.kind,
-			typ:          fs.typ,
+			field:       fs.field,
+			structField: fs.structField,
+			path:        fs.path,
+			structPath:  fs.structPath,
+			value:       fs.value.Interface(),
+			kind:        fs.kind,
+			typ:         fs.typ,
 		}
 
 		if strings.HasPrefix(rule, "transform=") {
@@ -546,6 +521,10 @@ func (v *validator) parseTag(tag string) []string {
 
 // format fieldError
 func (v *validator) formatErr(fe *fieldError) error {
+	// set display field
+	// done here so expensive regex matching is only done when an error must be returned
+	fe.displayField = v.getDisplayName(fe.structField)
+
 	for _, formatter := range v.errFormatters {
 		err := formatter(fe)
 		if err != nil {
@@ -554,4 +533,27 @@ func (v *validator) formatErr(fe *fieldError) error {
 	}
 
 	return fe
+}
+
+// get field struct name in a human-readable form
+func (v *validator) getDisplayName(fieldName string) string {
+	// handle snake case - replace underscores with spaces
+	fn := strings.ReplaceAll(fieldName, "_", " ")
+
+	// split camel and pascal case
+	fn = regexp.MustCompile(`([a-z])([A-Z])`).ReplaceAllStringFunc(fn, func(ns string) string {
+		return string(ns[0]) + " " + string(ns[1])
+	})
+
+	// check if string contains a number
+	if regexp.MustCompile(`\d`).MatchString(fn) {
+		fn = regexp.MustCompile(`([A-Z])([0-9])`).ReplaceAllStringFunc(fn, func(ns string) string {
+			return string(ns[0]) + " " + string(ns[1])
+		})
+		fn = regexp.MustCompile(`([a-z])([0-9])`).ReplaceAllStringFunc(fn, func(ns string) string {
+			return string(ns[0]) + " " + string(ns[1])
+		})
+	}
+
+	return fn
 }
