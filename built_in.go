@@ -19,8 +19,8 @@ var builtInValidators = map[string]ValidationFn{
 }
 
 // validates if field is of supported type
-func isSupported(fieldValue reflect.Value) bool {
-	switch fieldValue.Kind() {
+func isSupported(fieldKind reflect.Kind) bool {
+	switch fieldKind {
 	case reflect.Invalid, reflect.Chan, reflect.Func:
 		return false
 	}
@@ -29,8 +29,8 @@ func isSupported(fieldValue reflect.Value) bool {
 }
 
 // validates if field's value is not the default static value
-func hasValue(fieldValue reflect.Value) bool {
-	switch fieldValue.Kind() {
+func hasValue(fieldKind reflect.Kind, fieldValue reflect.Value) bool {
+	switch fieldKind {
 	case reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface:
 		return !fieldValue.IsNil()
 	default:
@@ -40,7 +40,7 @@ func hasValue(fieldValue reflect.Value) bool {
 
 // validates if field is zero
 func validateRequired(_ context.Context, fs FieldScope) (bool, error) {
-	return hasValue(fs.Value()), nil
+	return hasValue(fs.Kind(), fs.Value()), nil
 }
 
 // validates if field is a valid email address

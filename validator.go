@@ -178,13 +178,13 @@ func (v *validator) validateFields(
 		fs.structPath = v.getFieldPath(structPath, fs.structField)
 
 		// check if field is of supported type
-		err := v.validateFieldType(fs.value, fs.path)
+		err := v.validateFieldType(fs.kind, fs.path)
 		if err != nil {
 			return nil, err
 		}
 
 		// check if field should be skipped based on provided tags
-		if v.shouldSkipField(fs.value, fs.path, rules, opts) {
+		if v.shouldSkipField(fs, rules, opts) {
 			continue
 		}
 
@@ -259,8 +259,8 @@ func (v *validator) getDisplayName(fieldName string) string {
 }
 
 // check if field is of supported type and return error if not
-func (v *validator) validateFieldType(fieldValue reflect.Value, fieldPath string) error {
-	if !isSupported(fieldValue) {
+func (v *validator) validateFieldType(fieldKind reflect.Kind, fieldPath string) error {
+	if !isSupported(fieldKind) {
 		return errors.New("firevault: unsupported field type - " + fieldPath)
 	}
 
@@ -270,16 +270,15 @@ func (v *validator) validateFieldType(fieldValue reflect.Value, fieldPath string
 // skip field validation if value is zero and an omitempty tag is present
 // (unless tags are skipped using options)
 func (v *validator) shouldSkipField(
-	fieldValue reflect.Value,
-	fieldPath string,
+	fs *fieldScope,
 	rules []string,
 	opts validationOpts,
 ) bool {
 	omitEmptyMethodTag := string("omitempty_" + opts.method)
 	shouldOmitEmpty := slices.Contains(rules, "omitempty") || slices.Contains(rules, omitEmptyMethodTag)
 
-	if shouldOmitEmpty && !slices.Contains(opts.emptyFieldsAllowed, fieldPath) {
-		return !hasValue(fieldValue)
+	if shouldOmitEmpty && !slices.Contains(opts.emptyFieldsAllowed, fs.path) {
+		return !hasValue(fs.kind, fs.value)
 	}
 
 	return false
@@ -310,7 +309,7 @@ func (v *validator) applyRules(
 		// skip processing if the field is empty and it's not a required rule
 		requiredMethodTag := string("required" + method)
 		isRequiredRule := rule == "required" || rule == requiredMethodTag
-		if !hasValue(fs.value) && !isRequiredRule {
+		if !hasValue(fs.kind, fs.value) && !isRequiredRule {
 			continue
 		}
 
