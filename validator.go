@@ -35,8 +35,8 @@ type validator struct {
 
 func newValidator() *validator {
 	validator := &validator{
-		make(map[string]ValidationFn),
-		make(map[string]TransformationFn),
+		make(map[string]ValidationFn, len(builtInValidators)),
+		make(map[string]TransformationFn, 0),
 		make([]ErrorFormatterFn, 0),
 	}
 
@@ -143,7 +143,7 @@ func (v *validator) validateFields(
 	opts validationOpts,
 ) (map[string]interface{}, error) {
 	// map which will hold all fields to pass to firestore
-	dataMap := make(map[string]interface{})
+	dataMap := make(map[string]interface{}, rs.values.NumField())
 
 	// iterate over struct fields
 	for i := 0; i < rs.values.NumField(); i++ {
@@ -415,7 +415,7 @@ func (v *validator) processMapValue(
 	fs *fieldScope,
 	opts validationOpts,
 ) (map[string]interface{}, error) {
-	newMap := make(map[string]interface{})
+	newMap := make(map[string]interface{}, fs.value.Len())
 	iter := fs.value.MapRange()
 
 	for iter.Next() {
@@ -480,15 +480,14 @@ func (v *validator) processSliceValue(
 // parse rule tags
 func (v *validator) parseTag(tag string) []string {
 	rules := strings.Split(tag, ",")
-
-	var validatedRules []string
+	validRules := make([]string, 0, len(rules))
 
 	for _, rule := range rules {
 		trimmedRule := strings.TrimSpace(rule)
-		validatedRules = append(validatedRules, trimmedRule)
+		validRules = append(validRules, trimmedRule)
 	}
 
-	return validatedRules
+	return validRules
 }
 
 // format fieldError
