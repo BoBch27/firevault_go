@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,12 @@ var (
 		"email":             validateEmail,
 		"max":               validateMax,
 		"min":               validateMin,
+	}
+
+	builtInTransformators = map[string]TransformationFn{
+		"uppercase":  transformUppercase,
+		"lowercase":  transformLowercase,
+		"trim_space": transformTrimSpace,
 	}
 )
 
@@ -170,4 +177,31 @@ func validateMin(
 	}
 
 	return false, errors.New("firevault: invalid field type - " + fs.Path())
+}
+
+// transforms a field of string type to upper case
+func transformUppercase(_ context.Context, fs FieldScope) (interface{}, error) {
+	if fs.Kind() != reflect.String {
+		return fs.Value().Interface(), nil
+	}
+
+	return strings.ToUpper(fs.Value().String()), nil
+}
+
+// transforms a field of string type to lower case
+func transformLowercase(_ context.Context, fs FieldScope) (interface{}, error) {
+	if fs.Kind() != reflect.String {
+		return fs.Value().Interface(), nil
+	}
+
+	return strings.ToLower(fs.Value().String()), nil
+}
+
+// transforms a field of string type by removing all white space
+func transformTrimSpace(_ context.Context, fs FieldScope) (interface{}, error) {
+	if fs.Kind() != reflect.String {
+		return fs.Value().Interface(), nil
+	}
+
+	return strings.TrimSpace(fs.Value().String()), nil
 }

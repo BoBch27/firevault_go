@@ -208,6 +208,7 @@ func TestCustomRules(t *testing.T) {
 			return strings.ToUpper(fs.Value().String()), nil
 		},
 		false,
+		false,
 	)
 	if err != nil {
 		t.Fatalf("Failed to register custom transformation: %v", err)
@@ -455,7 +456,7 @@ func TestRegisterTransformation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.registerTransformation(tt.transName, tt.transformation, tt.runOnNil)
+			err := v.registerTransformation(tt.transName, tt.transformation, false, tt.runOnNil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validator.registerTransformation() error = %v, wantErr %v", err, tt.wantErr)
 			}

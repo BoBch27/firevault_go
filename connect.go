@@ -90,7 +90,7 @@ func (c *Connection) RegisterTransformation(
 		nilCallable = runOnNil[0]
 	}
 
-	return c.validator.registerTransformation(name, transformation, nilCallable)
+	return c.validator.registerTransformation(name, transformation, false, nilCallable)
 }
 
 // Register a new error formatter.

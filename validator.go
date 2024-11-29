@@ -64,6 +64,12 @@ func newValidator() *validator {
 		_ = validator.registerValidation(name, val, true, runOnNil)
 	}
 
+	// Register predefined transformators
+	for name, trans := range builtInTransformators {
+		// no need to error check here, built in validations are always valid
+		_ = validator.registerTransformation(name, trans, true, false)
+	}
+
 	return validator
 }
 
@@ -103,6 +109,7 @@ func (v *validator) registerValidation(
 func (v *validator) registerTransformation(
 	name string,
 	transformation TransformationFn,
+	builtIn bool,
 	runOnNil bool,
 ) error {
 	if v == nil {
@@ -113,11 +120,13 @@ func (v *validator) registerTransformation(
 		return errors.New("firevault: transformation function name cannot be empty")
 	}
 
-	_, found := restrictedTags[name]
-	if found || strings.ContainsAny(name, restrictedTagChars) {
-		return errors.New(
-			"firevault: transformation rule contains restricted characters or is the same as a built-in tag",
-		)
+	if !builtIn {
+		_, found := restrictedTags[name]
+		if found || strings.ContainsAny(name, restrictedTagChars) {
+			return errors.New(
+				"firevault: transformation rule contains restricted characters or is the same as a built-in tag",
+			)
+		}
 	}
 
 	if transformation == nil {
