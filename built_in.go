@@ -68,10 +68,7 @@ func validateEmail(_ context.Context, fs FieldScope) (bool, error) {
 }
 
 // validates if field's value is less than or equal to param's value
-func validateMax(
-	_ context.Context,
-	fs FieldScope,
-) (bool, error) {
+func validateMax(_ context.Context, fs FieldScope) (bool, error) {
 	if fs.Param() == "" {
 		return false, errors.New("firevault: provide a max param - " + fs.Path())
 	}
@@ -124,10 +121,7 @@ func validateMax(
 }
 
 // validates if field's value is greater than or equal to param's value
-func validateMin(
-	_ context.Context,
-	fs FieldScope,
-) (bool, error) {
+func validateMin(_ context.Context, fs FieldScope) (bool, error) {
 	if fs.Param() == "" {
 		return false, errors.New("firevault: provide a min param - " + fs.Path())
 	}

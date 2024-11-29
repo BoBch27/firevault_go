@@ -52,7 +52,7 @@ func newValidator() *validator {
 		make([]ErrorFormatterFn, 0),
 	}
 
-	// Register predefined validators
+	// register predefined validators
 	for name, val := range builtInValidators {
 		runOnNil := false
 		// required tags will be called on nil values
@@ -64,7 +64,7 @@ func newValidator() *validator {
 		_ = validator.registerValidation(name, val, true, runOnNil)
 	}
 
-	// Register predefined transformators
+	// register predefined transformators
 	for name, trans := range builtInTransformators {
 		// no need to error check here, built in validations are always valid
 		_ = validator.registerTransformation(name, trans, true, false)
