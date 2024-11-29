@@ -19,7 +19,7 @@ import "github.com/bobch27/firevault_go"
 
 Connection
 ------------
-You can connect to Firevault using the `Connect` method, providing a project ID.
+You can connect to Firevault using the `Connect` method, providing a project ID. A Firevault `Connection` is designed to be thread-safe and used as a singleton instance.
 
 ```go
 import (
@@ -96,7 +96,7 @@ Firevault validates fields' values based on the defined rules. There are built-i
 *Custom validations:*
 - To define a custom validation, use `Connection`'s `RegisterValidation` method.
 	- *Expects*:
-		- name: A `string` defining the validation name
+		- name: A `string` defining the validation name.
 		- func: A function of type `ValidationFn`. The passed in function accepts two parameters.
 			- *Expects*:
 				- ctx: A context.
@@ -104,6 +104,7 @@ Firevault validates fields' values based on the defined rules. There are built-i
 			- *Returns*:
 				- result: A `bool` which returns `true` if check has passed, and `false` if it hasn't.
 				- error: An `error` in case something went wrong during the check.
+		- runOnNil *(optional)*: An optional `bool` indicating whether the validation should be executed on nil values. The default is `false`.
 
 *Registering custom validations is not thread-safe. It is intended that all rules be registered, prior to any validation. Also, if a rule with the same name already exists, the previous one will be replaced.*
 
@@ -131,11 +132,19 @@ type User struct {
 
 Transformations
 ------------
-Firevault also supports rules that transform the field's value. To use them, it's as simple as registering a transformation and adding a prefix to the tag.
+Firevault also supports rules that transform the field's value. There are built-in transformations, with support for adding **custom** ones. To use them, it's as simple as adding a prefix to the tag.
 
+*Again, the order in which they are executed depends on the tag order.*
+
+*Built-in transformations:*
+- `uppercase` - Converts the field's string value to upper case. If the field is not a string, it simply returns its original value and no error.
+- `lowercase` - Converts the field's string value to lower case. If the field is not a string, it simply returns its original value and no error.
+- `trim_space` - Removes all leading and trailing white space around the field's string value. If the field is not a string, it simply returns its original value and no error.
+
+*Custom transformations:*
 - To define a transformation, use `Connection`'s `RegisterTransformation` method.
 	- *Expects*:
-		- name: A `string` defining the validation name
+		- name: A `string` defining the transformation name.
 		- func: A function of type `TransformationFn`. The passed in function accepts two parameters.
 			- *Expects*: 
 				- ctx: A context.
@@ -143,6 +152,7 @@ Firevault also supports rules that transform the field's value. To use them, it'
 			- *Returns*:
 				- result: An `interface{}` with the new, transformed, value.
 				- error: An `error` in case something went wrong during the transformation.
+		- runOnNil *(optional)*: An optional `bool` indicating whether the transformation should be executed on nil values. The default is `false`.
 
 *Registering custom transformations is not thread-safe. It is intended that all rules be registered, prior to any validation. Also, if a rule with the same name already exists, the previous one will be replaced.*
 
@@ -179,6 +189,8 @@ type User struct {
 Collections
 ------------
 A Firevault `CollectionRef` instance allows for interacting with Firestore, through various read and write methods.
+
+These instances are lightweight and safe to create repeatedly. They can be freely used as needed, without concern for maintaining a singleton instance, as each instance independently references the specified Firestore collection.
 
 To create a `CollectionRef` instance, call the `Collection` function, using the struct type parameter, and passing in the `Connection` instance, as well as a collection **path**.
 
