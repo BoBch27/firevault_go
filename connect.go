@@ -51,12 +51,21 @@ func (c *Connection) Close() error {
 // Registering such functions is not thread-safe;
 // it is intended that all rules be registered,
 // prior to any validation.
-func (c *Connection) RegisterValidation(name string, validation ValidationFn) error {
+func (c *Connection) RegisterValidation(
+	name string,
+	validation ValidationFn,
+	runOnNil ...bool,
+) error {
 	if c == nil {
 		return errors.New("firevault: nil Connection")
 	}
 
-	return c.validator.registerValidation(name, validation, false)
+	var nilCallable bool
+	if len(runOnNil) > 0 {
+		nilCallable = runOnNil[0]
+	}
+
+	return c.validator.registerValidation(name, validation, false, nilCallable)
 }
 
 // Register a new transformation rule.
@@ -67,12 +76,21 @@ func (c *Connection) RegisterValidation(name string, validation ValidationFn) er
 // Registering such functions is not thread-safe;
 // it is intended that all rules be registered,
 // prior to any validation.
-func (c *Connection) RegisterTransformation(name string, transformation TransformationFn) error {
+func (c *Connection) RegisterTransformation(
+	name string,
+	transformation TransformationFn,
+	runOnNil ...bool,
+) error {
 	if c == nil {
 		return errors.New("firevault: nil Connection")
 	}
 
-	return c.validator.registerTransformation(name, transformation)
+	var nilCallable bool
+	if len(runOnNil) > 0 {
+		nilCallable = runOnNil[0]
+	}
+
+	return c.validator.registerTransformation(name, transformation, nilCallable)
 }
 
 // Register a new error formatter.

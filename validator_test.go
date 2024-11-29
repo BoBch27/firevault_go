@@ -167,7 +167,7 @@ func TestIndividualValidations(t *testing.T) {
 				param: tt.param,
 			}
 
-			valid, err := validator(context.Background(), fs)
+			valid, err := validator.fn(context.Background(), fs)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
@@ -195,6 +195,7 @@ func TestCustomRules(t *testing.T) {
 			return fs.Value().String() == "custom", nil
 		},
 		false,
+		false,
 	)
 	if err != nil {
 		t.Fatalf("Failed to register custom validation: %v", err)
@@ -206,6 +207,7 @@ func TestCustomRules(t *testing.T) {
 		func(ctx context.Context, fs FieldScope) (interface{}, error) {
 			return strings.ToUpper(fs.Value().String()), nil
 		},
+		false,
 	)
 	if err != nil {
 		t.Fatalf("Failed to register custom transformation: %v", err)
@@ -374,6 +376,7 @@ func TestRegisterValidation(t *testing.T) {
 		name       string
 		valName    string
 		validation ValidationFn
+		runOnNil   bool
 		wantErr    bool
 	}{
 		{
@@ -382,7 +385,8 @@ func TestRegisterValidation(t *testing.T) {
 			validation: func(ctx context.Context, fs FieldScope) (bool, error) {
 				return true, nil
 			},
-			wantErr: false,
+			runOnNil: false,
+			wantErr:  false,
 		},
 		{
 			name:    "Empty name",
@@ -390,19 +394,21 @@ func TestRegisterValidation(t *testing.T) {
 			validation: func(ctx context.Context, fs FieldScope) (bool, error) {
 				return true, nil
 			},
-			wantErr: true,
+			runOnNil: false,
+			wantErr:  true,
 		},
 		{
 			name:       "Nil validation function",
 			valName:    "nil_validation",
 			validation: nil,
+			runOnNil:   false,
 			wantErr:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.registerValidation(tt.valName, tt.validation, false)
+			err := v.registerValidation(tt.valName, tt.validation, false, tt.runOnNil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validator.registerValidation() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -417,6 +423,7 @@ func TestRegisterTransformation(t *testing.T) {
 		name           string
 		transName      string
 		transformation TransformationFn
+		runOnNil       bool
 		wantErr        bool
 	}{
 		{
@@ -425,7 +432,8 @@ func TestRegisterTransformation(t *testing.T) {
 			transformation: func(ctx context.Context, fs FieldScope) (interface{}, error) {
 				return fs.Value().Interface(), nil
 			},
-			wantErr: false,
+			runOnNil: false,
+			wantErr:  false,
 		},
 		{
 			name:      "Empty name",
@@ -433,19 +441,21 @@ func TestRegisterTransformation(t *testing.T) {
 			transformation: func(ctx context.Context, fs FieldScope) (interface{}, error) {
 				return fs.Value().Interface(), nil
 			},
-			wantErr: true,
+			runOnNil: false,
+			wantErr:  true,
 		},
 		{
 			name:           "Nil transformation function",
 			transName:      "nil_transformation",
 			transformation: nil,
+			runOnNil:       false,
 			wantErr:        true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.registerTransformation(tt.transName, tt.transformation)
+			err := v.registerTransformation(tt.transName, tt.transformation, tt.runOnNil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validator.registerTransformation() error = %v, wantErr %v", err, tt.wantErr)
 			}

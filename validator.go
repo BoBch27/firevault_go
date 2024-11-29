@@ -15,9 +15,21 @@ import (
 // during a validation.
 type ValidationFn func(ctx context.Context, fs FieldScope) (bool, error)
 
+// holds val func as well as whether it can be called on nil values
+type valFnWrapper struct {
+	fn       ValidationFn
+	runOnNil bool
+}
+
 // A TransformationFn is the function that's executed
 // during a transformation.
 type TransformationFn func(ctx context.Context, fs FieldScope) (interface{}, error)
+
+// holds transform func as well as whether it can be called on nil values
+type transFnWrapper struct {
+	fn       TransformationFn
+	runOnNil bool
+}
 
 // An ErrorFormatterFn is the function that's executed
 // to generate a custom, user-friendly error message,
@@ -28,29 +40,40 @@ type TransformationFn func(ctx context.Context, fs FieldScope) (interface{}, err
 type ErrorFormatterFn func(fe FieldError) error
 
 type validator struct {
-	validations     map[string]ValidationFn
-	transformations map[string]TransformationFn
+	validations     map[string]valFnWrapper
+	transformations map[string]transFnWrapper
 	errFormatters   []ErrorFormatterFn
 }
 
 func newValidator() *validator {
 	validator := &validator{
-		make(map[string]ValidationFn),
-		make(map[string]TransformationFn),
+		make(map[string]valFnWrapper),
+		make(map[string]transFnWrapper),
 		make([]ErrorFormatterFn, 0),
 	}
 
 	// Register predefined validators
 	for name, val := range builtInValidators {
+		runOnNil := false
+		// required tags will be called on nil values
+		if strings.Contains(name, "required") {
+			runOnNil = true
+		}
+
 		// no need to error check here, built in validations are always valid
-		_ = validator.registerValidation(name, val, true)
+		_ = validator.registerValidation(name, val, true, runOnNil)
 	}
 
 	return validator
 }
 
 // register a validation
-func (v *validator) registerValidation(name string, validation ValidationFn, builtIn bool) error {
+func (v *validator) registerValidation(
+	name string,
+	validation ValidationFn,
+	builtIn bool,
+	runOnNil bool,
+) error {
 	if v == nil {
 		return errors.New("firevault: nil validator")
 	}
@@ -72,12 +95,16 @@ func (v *validator) registerValidation(name string, validation ValidationFn, bui
 		return fmt.Errorf("firevault: validation function %s cannot be empty", name)
 	}
 
-	v.validations[name] = validation
+	v.validations[name] = valFnWrapper{validation, runOnNil}
 	return nil
 }
 
 // register a transformation
-func (v *validator) registerTransformation(name string, transformation TransformationFn) error {
+func (v *validator) registerTransformation(
+	name string,
+	transformation TransformationFn,
+	runOnNil bool,
+) error {
 	if v == nil {
 		return errors.New("firevault: nil validator")
 	}
@@ -97,7 +124,7 @@ func (v *validator) registerTransformation(name string, transformation Transform
 		return fmt.Errorf("firevault: transformation function %s cannot be empty", name)
 	}
 
-	v.transformations[name] = transformation
+	v.transformations[name] = transFnWrapper{transformation, runOnNil}
 	return nil
 }
 
@@ -219,7 +246,7 @@ func (v *validator) validateFields(
 		// apply rules (both transformations and validations)
 		// unless skipped using options
 		if !opts.skipValidation {
-			err := v.applyRules(ctx, fs, rules, opts.method)
+			err := v.applyRules(ctx, fs, rules)
 			if err != nil {
 				return nil, err
 			}
@@ -320,16 +347,8 @@ func (v *validator) applyRules(
 	ctx context.Context,
 	fs *fieldScope,
 	rules []string,
-	method methodType,
 ) error {
 	for _, rule := range rules {
-		// skip processing if the field is empty and it's not a required rule
-		requiredMethodTag := string("required" + method)
-		isRequiredRule := rule == "required" || rule == requiredMethodTag
-		if !hasValue(fs.value) && !isRequiredRule {
-			continue
-		}
-
 		fe := &fieldError{
 			field:        fs.field,
 			structField:  fs.structField,
@@ -348,7 +367,12 @@ func (v *validator) applyRules(
 			fs.tag = transName
 
 			if transformation, ok := v.transformations[transName]; ok {
-				newValue, err := transformation(ctx, fs)
+				// skip processing if field is zero, unless stated otherwise during rule registration
+				if !hasValue(fs.value) && !transformation.runOnNil {
+					continue
+				}
+
+				newValue, err := transformation.fn(ctx, fs)
 				if err != nil {
 					return err
 				}
@@ -372,7 +396,12 @@ func (v *validator) applyRules(
 			fs.param = param
 
 			if validation, ok := v.validations[rule]; ok {
-				ok, err := validation(ctx, fs)
+				// skip processing if field is zero, unless stated otherwise during rule registration
+				if !hasValue(fs.value) && !validation.runOnNil {
+					continue
+				}
+
+				ok, err := validation.fn(ctx, fs)
 				if err != nil {
 					return err
 				}
