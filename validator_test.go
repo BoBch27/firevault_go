@@ -189,9 +189,13 @@ func TestCustomRules(t *testing.T) {
 	v := newValidator()
 
 	// Custom validation rule
-	err := v.registerValidation("custom", func(ctx context.Context, fs FieldScope) (bool, error) {
-		return fs.Value().String() == "custom", nil
-	})
+	err := v.registerValidation(
+		"custom",
+		func(ctx context.Context, fs FieldScope) (bool, error) {
+			return fs.Value().String() == "custom", nil
+		},
+		false,
+	)
 	if err != nil {
 		t.Fatalf("Failed to register custom validation: %v", err)
 	}
@@ -398,7 +402,7 @@ func TestRegisterValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.registerValidation(tt.valName, tt.validation)
+			err := v.registerValidation(tt.valName, tt.validation, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validator.registerValidation() error = %v, wantErr %v", err, tt.wantErr)
 			}

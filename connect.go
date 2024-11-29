@@ -56,7 +56,7 @@ func (c *Connection) RegisterValidation(name string, validation ValidationFn) er
 		return errors.New("firevault: nil Connection")
 	}
 
-	return c.validator.registerValidation(name, validation)
+	return c.validator.registerValidation(name, validation, false)
 }
 
 // Register a new transformation rule.

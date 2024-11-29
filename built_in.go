@@ -8,15 +8,26 @@ import (
 	"time"
 )
 
-var builtInValidators = map[string]ValidationFn{
-	"required":          validateRequired,
-	"required_create":   validateRequired,
-	"required_update":   validateRequired,
-	"required_validate": validateRequired,
-	"email":             validateEmail,
-	"max":               validateMax,
-	"min":               validateMin,
-}
+const restrictedTagChars = ".[],|=+()`~!@#$%^&*\\\"/?<>{}"
+
+var (
+	restrictedTags = map[string]struct{}{
+		"omitempty":          {},
+		"omitempty_create":   {},
+		"omitempty_update":   {},
+		"omitempty_validate": {},
+	}
+
+	builtInValidators = map[string]ValidationFn{
+		"required":          validateRequired,
+		"required_create":   validateRequired,
+		"required_update":   validateRequired,
+		"required_validate": validateRequired,
+		"email":             validateEmail,
+		"max":               validateMax,
+		"min":               validateMin,
+	}
+)
 
 // validates if field is of supported type
 func isSupported(fieldValue reflect.Value) bool {

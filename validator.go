@@ -41,22 +41,31 @@ func newValidator() *validator {
 	}
 
 	// Register predefined validators
-	for k, v := range builtInValidators {
+	for name, val := range builtInValidators {
 		// no need to error check here, built in validations are always valid
-		_ = validator.registerValidation(k, v)
+		_ = validator.registerValidation(name, val, true)
 	}
 
 	return validator
 }
 
 // register a validation
-func (v *validator) registerValidation(name string, validation ValidationFn) error {
+func (v *validator) registerValidation(name string, validation ValidationFn, builtIn bool) error {
 	if v == nil {
 		return errors.New("firevault: nil validator")
 	}
 
 	if len(name) == 0 {
 		return errors.New("firevault: validation function name cannot be empty")
+	}
+
+	if !builtIn {
+		_, found := restrictedTags[name]
+		if found || strings.ContainsAny(name, restrictedTagChars) {
+			return errors.New(
+				"firevault: validation rule contains restricted characters or is the same as a built-in tag",
+			)
+		}
 	}
 
 	if validation == nil {
@@ -75,6 +84,13 @@ func (v *validator) registerTransformation(name string, transformation Transform
 
 	if len(name) == 0 {
 		return errors.New("firevault: transformation function name cannot be empty")
+	}
+
+	_, found := restrictedTags[name]
+	if found || strings.ContainsAny(name, restrictedTagChars) {
+		return errors.New(
+			"firevault: transformation rule contains restricted characters or is the same as a built-in tag",
+		)
 	}
 
 	if transformation == nil {
