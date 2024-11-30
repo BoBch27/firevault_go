@@ -14,6 +14,7 @@ type validationOpts struct {
 	method             methodType
 	skipValidation     bool
 	emptyFieldsAllowed []string
+	modifyOriginal     bool
 }
 
 // A Firevault Options instance allows for the overriding of
@@ -45,6 +46,12 @@ type Options struct {
 	//
 	// Only used for updating method.
 	mergeFields []string
+	// Allows the updating of the original struct's values during
+	// transformations. Default is "false".
+	//
+	// Note: Setting this to "true" makes the struct validation
+	// thread-unsafe. Use with caution.
+	modifyOriginal bool
 	// Specify custom doc ID. If left empty, Firestore will
 	// automatically create one.
 	//
@@ -93,6 +100,16 @@ func (o Options) AllowEmptyFields(fields ...string) Options {
 // Only used for updating method.
 func (o Options) MergeFields(fields ...string) Options {
 	o.mergeFields = append(o.mergeFields, fields...)
+	return o
+}
+
+// Allows the updating of the original struct's values during
+// transformations. Default is "false".
+//
+// Note: Setting this to "true" makes the struct validation
+// thread-unsafe. Use with caution.
+func (o Options) ModifyOriginal() Options {
+	o.modifyOriginal = true
 	return o
 }
 

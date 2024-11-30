@@ -244,9 +244,11 @@ func (v *validator) processField(
 			return "", nil, err
 		}
 
-		// set original struct's field value if changed
-		if fieldValue != fs.value {
-			rs.values.Field(fieldIndex).Set(fs.value)
+		if opts.modifyOriginal {
+			// set original struct's field value if changed
+			if fieldValue != fs.value {
+				rs.values.Field(fieldIndex).Set(fs.value)
+			}
 		}
 	}
 

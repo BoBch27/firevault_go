@@ -226,6 +226,7 @@ func (c *CollectionRef[T]) parseOptions(
 		method:             method,
 		skipValidation:     false,
 		emptyFieldsAllowed: make([]string, 0),
+		modifyOriginal:     false,
 	}
 
 	if len(opts) == 0 {
@@ -241,6 +242,10 @@ func (c *CollectionRef[T]) parseOptions(
 
 	if len(passedOpts.allowEmptyFields) > 0 {
 		options.emptyFieldsAllowed = passedOpts.allowEmptyFields
+	}
+
+	if passedOpts.modifyOriginal {
+		options.modifyOriginal = true
 	}
 
 	if method == update && len(passedOpts.mergeFields) > 0 {
