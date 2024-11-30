@@ -1,22 +1,5 @@
 package firevault
 
-// used to determine how to parse options
-type methodType string
-
-const (
-	validate methodType = "validate"
-	create   methodType = "create"
-	update   methodType = "update"
-)
-
-// options used by validator
-type validationOpts struct {
-	method             methodType
-	skipValidation     bool
-	emptyFieldsAllowed []string
-	modifyOriginal     bool
-}
-
 // A Firevault Options instance allows for the overriding of
 // default options for validation, creation and updating methods.
 //
