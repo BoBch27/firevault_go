@@ -18,6 +18,9 @@ type Connection struct {
 //
 // A Firevault Connection provides access to
 // Firevault services.
+//
+// It is designed to be thread-safe and used
+// as a singleton instance.
 func Connect(ctx context.Context, projectID string) (*Connection, error) {
 	val := newValidator()
 

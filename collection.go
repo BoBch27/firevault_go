@@ -14,6 +14,12 @@ import (
 // A Firevault CollectionRef holds a reference to a
 // Firestore Collection and allows for the fetching and
 // modifying (with validation) of documents in it.
+//
+// CollectionRef instances are lightweight and safe to
+// create repeatedly. They can be freely used as needed,
+// without concern for maintaining a singleton instance,
+// as each instance independently references the
+// specified Firestore collection.
 type CollectionRef[T interface{}] struct {
 	connection *Connection
 	ref        *firestore.CollectionRef
@@ -31,6 +37,12 @@ type Document[T interface{}] struct {
 // A Firevault CollectionRef holds a reference to a
 // Firestore Collection and allows for the fetching and
 // modifying (with validation) of documents in it.
+//
+// CollectionRef instances are lightweight and safe to
+// create repeatedly. They can be freely used as needed,
+// without concern for maintaining a singleton instance,
+// as each instance independently references the
+// specified Firestore collection.
 //
 // The path argument is a sequence of IDs,
 // separated by slashes.
