@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,8 @@ type validator struct {
 	validations     map[string]ValidationFn
 	transformations map[string]TransformationFn
 	errFormatters   []ErrorFormatterFn
+	fieldScopePool  sync.Pool
+	fieldErrorPool  sync.Pool
 }
 
 func newValidator() *validator {
@@ -37,6 +40,16 @@ func newValidator() *validator {
 		make(map[string]ValidationFn, len(builtInValidators)),
 		make(map[string]TransformationFn, 0),
 		make([]ErrorFormatterFn, 0),
+		sync.Pool{
+			New: func() interface{} {
+				return &fieldScope{}
+			},
+		},
+		sync.Pool{
+			New: func() interface{} {
+				return &fieldError{}
+			},
+		},
 	}
 
 	// Register predefined validators
@@ -179,7 +192,9 @@ func (v *validator) processField(
 		return "", nil, nil
 	}
 
-	fs := &fieldScope{
+	fs := v.fieldScopePool.Get().(*fieldScope)
+	defer v.fieldScopePool.Put(fs)
+	*fs = fieldScope{
 		strct:       rs.values,
 		field:       fieldType.Name,
 		structField: fieldType.Name,
@@ -308,7 +323,9 @@ func (v *validator) applyRules(
 			continue
 		}
 
-		fe := &fieldError{
+		fe := v.fieldErrorPool.Get().(*fieldError)
+		defer v.fieldErrorPool.Put(fe)
+		*fe = fieldError{
 			field:       fs.field,
 			structField: fs.structField,
 			path:        fs.path,
@@ -450,7 +467,9 @@ func (v *validator) processMapValue(
 		key := iter.Key()
 		val := iter.Value()
 
-		newFs := &fieldScope{
+		newFs := v.fieldScopePool.Get().(*fieldScope)
+		defer v.fieldScopePool.Put(newFs)
+		*newFs = fieldScope{
 			strct:       fs.strct,
 			field:       key.String(),
 			structField: key.String(),
@@ -483,7 +502,9 @@ func (v *validator) processSliceValue(
 	for i := 0; i < fs.value.Len(); i++ {
 		val := fs.value.Index(i)
 
-		newFs := &fieldScope{
+		newFs := v.fieldScopePool.Get().(*fieldScope)
+		defer v.fieldScopePool.Put(newFs)
+		*newFs = fieldScope{
 			strct:       fs.strct,
 			field:       fmt.Sprintf("[%d]", i),
 			structField: fmt.Sprintf("[%d]", i),
