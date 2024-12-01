@@ -15,9 +15,21 @@ import (
 // during a validation.
 type ValidationFn func(ctx context.Context, fs FieldScope) (bool, error)
 
+// holds val func as well as whether it can be called on nil values
+type valFnWrapper struct {
+	fn       ValidationFn
+	runOnNil bool
+}
+
 // A TransformationFn is the function that's executed
 // during a transformation.
 type TransformationFn func(ctx context.Context, fs FieldScope) (interface{}, error)
+
+// holds trans func as well as whether it can be called on nil values
+type transFnWrapper struct {
+	fn       TransformationFn
+	runOnNil bool
+}
 
 // An ErrorFormatterFn is the function that's executed
 // to generate a custom, user-friendly error message,
@@ -28,8 +40,8 @@ type TransformationFn func(ctx context.Context, fs FieldScope) (interface{}, err
 type ErrorFormatterFn func(fe FieldError) error
 
 type validator struct {
-	validations     map[string]ValidationFn
-	transformations map[string]TransformationFn
+	validations     map[string]valFnWrapper
+	transformations map[string]transFnWrapper
 	errFormatters   []ErrorFormatterFn
 	fieldScopePool  sync.Pool
 	fieldErrorPool  sync.Pool
@@ -37,8 +49,8 @@ type validator struct {
 
 func newValidator() *validator {
 	validator := &validator{
-		make(map[string]ValidationFn, len(builtInValidators)),
-		make(map[string]TransformationFn, 0),
+		make(map[string]valFnWrapper, len(builtInValidators)),
+		make(map[string]transFnWrapper, 0),
 		make([]ErrorFormatterFn, 0),
 		sync.Pool{
 			New: func() interface{} {
@@ -54,15 +66,26 @@ func newValidator() *validator {
 
 	// Register predefined validators
 	for name, val := range builtInValidators {
+		runOnNil := false
+		// required tags will be called on nil values
+		if strings.Contains(name, "required") {
+			runOnNil = true
+		}
+
 		// no need to error check here, built in validations are always valid
-		_ = validator.registerValidation(name, val, true)
+		_ = validator.registerValidation(name, val, true, runOnNil)
 	}
 
 	return validator
 }
 
 // register a validation
-func (v *validator) registerValidation(name string, validation ValidationFn, builtIn bool) error {
+func (v *validator) registerValidation(
+	name string,
+	validation ValidationFn,
+	builtIn bool,
+	runOnNil bool,
+) error {
 	if v == nil {
 		return errors.New("firevault: nil validator")
 	}
@@ -84,12 +107,16 @@ func (v *validator) registerValidation(name string, validation ValidationFn, bui
 		return fmt.Errorf("firevault: validation function %s cannot be empty", name)
 	}
 
-	v.validations[name] = validation
+	v.validations[name] = valFnWrapper{validation, runOnNil}
 	return nil
 }
 
 // register a transformation
-func (v *validator) registerTransformation(name string, transformation TransformationFn) error {
+func (v *validator) registerTransformation(
+	name string,
+	transformation TransformationFn,
+	runOnNil bool,
+) error {
 	if v == nil {
 		return errors.New("firevault: nil validator")
 	}
@@ -102,7 +129,7 @@ func (v *validator) registerTransformation(name string, transformation Transform
 		return fmt.Errorf("firevault: transformation function %s cannot be empty", name)
 	}
 
-	v.transformations[name] = transformation
+	v.transformations[name] = transFnWrapper{transformation, runOnNil}
 	return nil
 }
 
@@ -256,7 +283,7 @@ func (v *validator) processField(
 	// unless skipped using options
 	if !opts.skipValidation {
 		// (has side effects as it updates fs values)
-		err := v.applyRules(ctx, fs, rules, opts.method)
+		err := v.applyRules(ctx, fs, rules)
 		if err != nil {
 			return "", nil, err
 		}
@@ -332,16 +359,8 @@ func (v *validator) applyRules(
 	ctx context.Context,
 	fs *fieldScope,
 	rules []string,
-	method methodType,
 ) error {
 	for _, rule := range rules {
-		// skip processing if the field is empty and it's not a required rule
-		requiredMethodTag := string("required" + method)
-		isRequiredRule := rule == "required" || rule == requiredMethodTag
-		if !hasValue(fs.kind, fs.value) && !isRequiredRule {
-			continue
-		}
-
 		fe := v.fieldErrorPool.Get().(*fieldError)
 		defer v.fieldErrorPool.Put(fe)
 		*fe = fieldError{
@@ -389,7 +408,12 @@ func (v *validator) applyTransformation(
 		return v.formatErr(fe)
 	}
 
-	newValue, err := transformation(ctx, fs)
+	// skip processing if field is zero, unless stated otherwise during rule registration
+	if !hasValue(fs.kind, fs.value) && !transformation.runOnNil {
+		return nil
+	}
+
+	newValue, err := transformation.fn(ctx, fs)
 	if err != nil {
 		return err
 	}
@@ -423,7 +447,12 @@ func (v *validator) applyValidation(
 		return v.formatErr(fe)
 	}
 
-	valid, err := validation(ctx, fs)
+	// skip processing if field is zero, unless stated otherwise during rule registration
+	if !hasValue(fs.kind, fs.value) && !validation.runOnNil {
+		return nil
+	}
+
+	valid, err := validation.fn(ctx, fs)
 	if err != nil {
 		return err
 	}
