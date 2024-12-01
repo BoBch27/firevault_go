@@ -53,22 +53,31 @@ func newValidator() *validator {
 	}
 
 	// Register predefined validators
-	for k, v := range builtInValidators {
+	for name, val := range builtInValidators {
 		// no need to error check here, built in validations are always valid
-		_ = validator.registerValidation(k, v)
+		_ = validator.registerValidation(name, val, true)
 	}
 
 	return validator
 }
 
 // register a validation
-func (v *validator) registerValidation(name string, validation ValidationFn) error {
+func (v *validator) registerValidation(name string, validation ValidationFn, builtIn bool) error {
 	if v == nil {
 		return errors.New("firevault: nil validator")
 	}
 
 	if len(name) == 0 {
 		return errors.New("firevault: validation function name cannot be empty")
+	}
+
+	if !builtIn {
+		_, exists := builtInValidators[name]
+		if exists {
+			return errors.New(
+				"firevault: validation rule name is taken by a built-in validation function",
+			)
+		}
 	}
 
 	if validation == nil {
