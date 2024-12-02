@@ -17,6 +17,7 @@ type fieldScope struct {
 	typ          reflect.Type
 	tag          string
 	param        string
+	dive         bool
 }
 
 // A Firevault FieldScope interface gives access

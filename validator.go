@@ -240,7 +240,10 @@ func (v *validator) validateFields(
 			continue
 		}
 
-		// remove omitempty tags from rules, so no validation is attempted
+		// check whether to dive into slice/map field
+		fs.dive = slices.Contains(rules, "dive")
+
+		// remove name, dive and omitempty tags from rules, so no validation is attempted
 		rules = v.cleanRules(rules)
 
 		// get pointer value, only if it's not nil
@@ -337,13 +340,14 @@ func (v *validator) shouldSkipField(
 	return false
 }
 
-// remove omitempty tags from rules
+// remove name, dive and omitempty tags from rules
 func (v *validator) cleanRules(rules []string) []string {
 	cleanedRules := make([]string, 0, len(rules))
 
 	for index, rule := range rules {
 		if index != 0 && rule != "omitempty" && rule != string("omitempty_"+create) &&
-			rule != string("omitempty_"+update) && rule != string("omitempty_"+validate) {
+			rule != string("omitempty_"+update) && rule != string("omitempty_"+validate) &&
+			rule != "dive" {
 			cleanedRules = append(cleanedRules, rule)
 		}
 	}
@@ -441,15 +445,25 @@ func (v *validator) processFinalValue(
 
 		return v.validateFields(ctx, reflectedStruct{fs.typ, fs.value}, fs.path, fs.structPath, opts)
 	case reflect.Map:
+		// return map directly, without validating nested fields
+		if !fs.dive {
+			return fs.value.Interface(), nil
+		}
+
 		return v.processMapValue(ctx, fs, opts)
 	case reflect.Array, reflect.Slice:
+		// return slice/array directly, without validating nested fields
+		if !fs.dive {
+			return fs.value.Interface(), nil
+		}
+
 		return v.processSliceValue(ctx, fs, opts)
 	default:
 		return fs.value.Interface(), nil
 	}
 }
 
-// get value if field is a map
+// process map's nested fields
 func (v *validator) processMapValue(
 	ctx context.Context,
 	fs *fieldScope,
@@ -490,7 +504,7 @@ func (v *validator) processMapValue(
 	return newMap, nil
 }
 
-// get value if field is a slice/array
+// process slice/array's nested fields
 func (v *validator) processSliceValue(
 	ctx context.Context,
 	fs *fieldScope,

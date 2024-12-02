@@ -13,6 +13,7 @@ const restrictedTagChars = ".[],|=+()`~!@#$%^&*\\\"/?<>{}"
 
 var (
 	restrictedTags = map[string]struct{}{
+		"dive":               {},
 		"omitempty":          {},
 		"omitempty_create":   {},
 		"omitempty_update":   {},
