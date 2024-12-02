@@ -26,12 +26,12 @@ type Options struct {
 	skipValidation bool
 	// Specify which field paths (using dot-separated strings)
 	// should ignore the "omitempty" (including method-specific)
-	// tags.
+	// rules.
 	//
 	// This can be useful when zero values are needed only during
 	// a specific method call.
 	//
-	// If left empty, those tags will be honoured for all fields.
+	// If left empty, those rules will be honoured for all fields.
 	allowEmptyFields []string
 	// Specify which field paths (using dot-separated strings)
 	// to be overwritten. Other fields on the existing document
@@ -63,8 +63,8 @@ func NewOptions() Options {
 	return Options{}
 }
 
-// Skip all validations - the "name" tag, "omitempty" tags and
-// "ignore" tag will still be honoured.
+// Skip all validations - the "name" rule, "omitempty" rules and
+// "ignore" rule will still be honoured.
 func (o Options) SkipValidation() Options {
 	o.skipValidation = true
 	return o
@@ -72,12 +72,12 @@ func (o Options) SkipValidation() Options {
 
 // Specify which field paths (using dot-separated strings)
 // should ignore the "omitempty" (including method-specific)
-// tags.
+// rules.
 //
 // This can be useful when zero values are needed only during
 // a specific method call.
 //
-// If left empty, those tags will be honoured for all fields.
+// If left empty, those rules will be honoured for all fields.
 func (o Options) AllowEmptyFields(fields ...string) Options {
 	o.allowEmptyFields = append(o.allowEmptyFields, fields...)
 	return o

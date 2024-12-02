@@ -65,18 +65,18 @@ type Address struct {
 
 Tags
 ------------
-When defining a new struct type with Firevault tags, note that the tags' order matters (apart from the different `omitempty` tags, which can be used anywhere). 
+When defining a new struct type with a Firevault tag, note that the rules' order matters (apart from the different `omitempty` rules, which can be used anywhere). 
 
-The first tag is always the **field name** which will be used in Firestore. You can skip that by just using a comma, before adding further tags.
+The first rule is always the **field name** which will be used in Firestore. You can skip that by just using a comma, before adding the others.
 
-After that, each tag is a different validation rule, and they will be parsed in order.
+After that, each rule is a different validation, and they will be parsed in order.
 
-Other than the validation tags, Firevault supports the following built-in tags:
+Other than the validation rules, Firevault supports the following built-in ones:
 - `omitempty` - If the field is set to it’s default value (e.g. `0` for `int`, or `""` for `string`), the field will be omitted from validation and Firestore.
 - `omitempty_create` - Works the same way as `omitempty`, but only for the `Create` method. Ignored during `Update` and `Validate` methods.
 - `omitempty_update` - Works the same way as `omitempty`, but only for the `Update` method. Ignored during `Create` and `Validate` methods.
 - `omitempty_validate` - Works the same way as `omitempty`, but only for the `Validate` method. Ignored during `Create` and `Update` methods.
-- `dive` - If the field is an array/slice or a map, this tag allows to recursively loop through and validate inner fields. Useful when the inner fields are structs with custom validation tags. Ignored for fields that are not arrays/slices or maps.
+- `dive` - If the field is an array/slice or a map, this rule allows to recursively loop through and validate inner fields. Useful when the inner fields are structs with custom validation tags. Ignored for fields that are not arrays/slices or maps.
 - `-` - Ignores the field.
 
 Validations
@@ -123,7 +123,7 @@ connection.RegisterValidation(
 )
 ```
 
-You can then chain the tag like a normal one.
+You can then chain the rule like a normal one.
 
 ```go
 type User struct {
@@ -133,7 +133,7 @@ type User struct {
 
 Transformations
 ------------
-Firevault also supports rules that transform the field's value. There are built-in transformations, with support for adding **custom** ones. To use them, it's as simple as adding a prefix to the tag.
+Firevault also supports rules that transform the field's value. There are built-in transformations, with support for adding **custom** ones. To use them, it's as simple as adding a prefix to the rule.
 
 *Again, the order in which they are executed depends on the tag order.*
 
@@ -170,7 +170,7 @@ connection.RegisterTransformation(
 )
 ```
 
-You can then chain the tag like a normal one, but don't forget to use the `transform=` prefix.
+You can then chain the rule like a normal one, but don't forget to use the `transform=` prefix.
 
 *Again, the tag order matters. Defining a transformation at the end, means the value will be updated **after** the validations, whereas a definition at the start, means the field will be updated and **then** validated.*
 
@@ -209,9 +209,9 @@ The `CollectionRef` instance has **7** built-in methods to support interaction w
 		- data: A `pointer` of a `struct` with populated fields which will be added to Firestore after validation.
 		- options *(optional)*: An instance of `Options` with the following properties having an
 		effect. 
-			- SkipValidation: A `bool` which when `true`, means all validation tags will be ingored (the `name` and `omitempty` tags will be acknowledged). Default is `false`.
+			- SkipValidation: A `bool` which when `true`, means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged). Default is `false`.
 			- ID: A `string` which will add a document to Firestore with the specified ID.
-			- AllowEmptyFields: An optional `string` `slice`, which is used to specify which fields can ignore the `omitempty` and `omitempty_create` tags. This can be useful when a field must be set to its zero value only on certain method calls. If left empty, all fields will honour the two tags.
+			- AllowEmptyFields: An optional `string` `slice`, which is used to specify which fields can ignore the `omitempty` and `omitempty_create` rules. This can be useful when a field must be set to its zero value only on certain method calls. If left empty, all fields will honour the two rules.
 	- *Returns*:
 		- id: A `string` with the new document's ID.
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
@@ -271,13 +271,13 @@ fmt.Println(id) // "6QVHL46WCE680ZG2Xn3X"
 		- data: A `pointer` of a `struct` with populated fields which will be used to update the documents after validation.
 		- options *(optional)*: An instance of `Options` with the following properties having an
 		effect.
-			- SkipValidation: A `bool` which when `true`, means all validation tags will be ingored (the `name` and `omitempty` tags will be acknowledged). Default is `false`.
+			- SkipValidation: A `bool` which when `true`, means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged). Default is `false`.
 			- MergeFields: An optional `string` `slice`, which is used to specify which fields to be overwritten. Other fields on the document will be untouched. If left empty, all the fields given in the data argument will be overwritten. If a field is specified, but is not present in the data passed, the field will be deleted from the document (using `firestore.Delete`).
-			- AllowEmptyFields: An optional `string` `slice`, which is used to specify which fields can ignore the `omitempty` and `omitempty_update` tags. This can be useful when a field must be set to its zero value only on certain updates. If left empty, all fields will honour the two tags.
+			- AllowEmptyFields: An optional `string` `slice`, which is used to specify which fields can ignore the `omitempty` and `omitempty_update` rules. This can be useful when a field must be set to its zero value only on certain updates. If left empty, all fields will honour the two rules.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
 	- ***Important***: 
-		- If neither `omitempty`, nor `omitempty_update` tags have been used, non-specified field values in the passed in data will be set to Go's default values, thus updating all document fields. To prevent that behaviour, please use one of the two tags. 
+		- If neither `omitempty`, nor `omitempty_update` rules have been used, non-specified field values in the passed in data will be set to Go's default values, thus updating all document fields. To prevent that behaviour, please use one of the two rules. 
 		- If no documents match the provided `Query`, the operation will do nothing and will not return an error.
 ```go
 user := User{
@@ -349,12 +349,12 @@ fmt.Println("Success") // address.Line1 field will be deleted from document, sin
 		- data: A `pointer` of a `struct` with populated fields which will be validated.
 		- options *(optional)*: An instance of `Options` with the following properties having an
 		effect.
-			- SkipValidation: A `bool` which when `true`, means all validation tags will be ingored (the `name` and `omitempty` tags will be acknowledged). Default is `false`.
-			- AllowEmptyFields: An optional `string` `slice`, which is used to specify which fields can ignore the `omitempty` and `omitempty_validate` tags. This can be useful when a field must be set to its zero value only on certain method calls. If left empty, all fields will honour the two tags.
+			- SkipValidation: A `bool` which when `true`, means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged). Default is `false`.
+			- AllowEmptyFields: An optional `string` `slice`, which is used to specify which fields can ignore the `omitempty` and `omitempty_validate` rules. This can be useful when a field must be set to its zero value only on certain method calls. If left empty, all fields will honour the two rules.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation.
 	- ***Important***: 
-		- If neither `omitempty`, nor `omitempty_validate` tags have been used, non-specified field values in the passed in data will be set to Go's default values. 
+		- If neither `omitempty`, nor `omitempty_validate` rules have been used, non-specified field values in the passed in data will be set to Go's default values. 
 ```go
 user := User{
 	Email: "HELLO@BOBBYDONEV.COM",
@@ -555,13 +555,13 @@ Methods
 ------------
 The `Options` instance has **4** built-in methods to support overriding default `CollectionRef` method options.
 
-- `SkipValidation` - Returns a new `Options` instance that allows to skip the data validation during creation, updating and validation methods. The "name" tag, "omitempty" tags and "ignore" tag will still be honoured.
+- `SkipValidation` - Returns a new `Options` instance that allows to skip the data validation during creation, updating and validation methods. The "name" rule, "omitempty" rules and "ignore" rule will still be honoured.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.SkipValidation()
 ```
-- `AllowEmptyFields` - Returns a new `Options` instance that allows to specify which field paths should ignore the "omitempty" tags. This can be useful when zero values are needed only during a specific method call. If left empty, those tags will be honoured for all fields.
+- `AllowEmptyFields` - Returns a new `Options` instance that allows to specify which field paths should ignore the "omitempty" rules. This can be useful when zero values are needed only during a specific method call. If left empty, those rules will be honoured for all fields.
 	- *Expects*:
 		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:
@@ -605,7 +605,7 @@ Firevault supports the creation of custom, user-friendly, error messages, throug
 
 ```go
 connection.RegisterErrorFormatter(func(fe FieldError) error {
-	if err.Tag() == "min" {
+	if err.Rule() == "min" {
 		return fmt.Errorf("%s must be at least %s characters long.", fe.DisplayField(), fe.Param())
 	}
 
@@ -635,7 +635,7 @@ if err != nil {
 ```go
 id, err := collection.Create(ctx, &User{
 	Name: "Bobby Donev",
-	Email: "hello@.com", // will fail on the "email" tag
+	Email: "hello@.com", // will fail on the "email" rule
 	Password: "123456",
 	Age: 25,
 	Address: &Address{
@@ -655,7 +655,7 @@ You can also directly handle and parse returned `FieldError`, without registerin
 ```go
 func parseError(fe FieldError) {
 	if fe.StructField() == "Password" { // or fe.Field() == "password"
-		if fe.Tag() == "min" {
+		if fe.Rule() == "min" {
 			fmt.Printf("Password must be at least %s characters long.", fe.Param())
 		} else {
 			fmt.Println(fe.Error())

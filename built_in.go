@@ -12,7 +12,7 @@ import (
 const restrictedTagChars = ".[],|=+()`~!@#$%^&*\\\"/?<>{}"
 
 var (
-	restrictedTags = map[string]struct{}{
+	restrictedRules = map[string]struct{}{
 		"dive":               {},
 		"omitempty":          {},
 		"omitempty_create":   {},

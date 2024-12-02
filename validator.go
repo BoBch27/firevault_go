@@ -55,7 +55,7 @@ func newValidator() *validator {
 	// register predefined validators
 	for name, val := range builtInValidators {
 		runOnNil := false
-		// required tags will be called on nil values
+		// required rules will be called on nil values
 		if strings.Contains(name, "required") {
 			runOnNil = true
 		}
@@ -89,10 +89,10 @@ func (v *validator) registerValidation(
 	}
 
 	if !builtIn {
-		_, found := restrictedTags[name]
+		_, found := restrictedRules[name]
 		if found || strings.ContainsAny(name, restrictedTagChars) {
 			return errors.New(
-				"firevault: validation rule contains restricted characters or is the same as a built-in tag",
+				"firevault: validation rule contains restricted characters or is the same as a built-in rule",
 			)
 		}
 	}
@@ -121,10 +121,10 @@ func (v *validator) registerTransformation(
 	}
 
 	if !builtIn {
-		_, found := restrictedTags[name]
+		_, found := restrictedRules[name]
 		if found || strings.ContainsAny(name, restrictedTagChars) {
 			return errors.New(
-				"firevault: transformation rule contains restricted characters or is the same as a built-in tag",
+				"firevault: transformation rule contains restricted characters or is the same as a built-in rule",
 			)
 		}
 	}
@@ -235,7 +235,7 @@ func (v *validator) validateFields(
 			return nil, err
 		}
 
-		// check if field should be skipped based on provided tags
+		// check if field should be skipped based on provided rules
 		if v.shouldSkipField(fs.value, fs.path, rules, opts) {
 			continue
 		}
@@ -243,7 +243,7 @@ func (v *validator) validateFields(
 		// check whether to dive into slice/map field
 		fs.dive = slices.Contains(rules, "dive")
 
-		// remove name, dive and omitempty tags from rules, so no validation is attempted
+		// remove name, dive and omitempty from rules, so no validation is attempted
 		fs.rules = v.cleanRules(rules)
 
 		// get pointer value, only if it's not nil
@@ -336,16 +336,16 @@ func (v *validator) validateFieldType(fieldValue reflect.Value, fieldPath string
 	return nil
 }
 
-// skip field validation if value is zero and an omitempty tag is present
-// (unless tags are skipped using options)
+// skip field validation if value is zero and an omitempty rule is present
+// (unless rules are skipped using options)
 func (v *validator) shouldSkipField(
 	fieldValue reflect.Value,
 	fieldPath string,
 	rules []string,
 	opts validationOpts,
 ) bool {
-	omitEmptyMethodTag := string("omitempty_" + opts.method)
-	shouldOmitEmpty := slices.Contains(rules, "omitempty") || slices.Contains(rules, omitEmptyMethodTag)
+	omitEmptyMethod := string("omitempty_" + opts.method)
+	shouldOmitEmpty := slices.Contains(rules, "omitempty") || slices.Contains(rules, omitEmptyMethod)
 
 	if shouldOmitEmpty && !slices.Contains(opts.emptyFieldsAllowed, fieldPath) {
 		return !hasValue(fieldValue)
@@ -354,7 +354,7 @@ func (v *validator) shouldSkipField(
 	return false
 }
 
-// remove name, dive and omitempty tags from rules
+// remove name, dive and omitempty from rules
 func (v *validator) cleanRules(rules []string) []string {
 	cleanedRules := make([]string, 0, len(rules))
 
