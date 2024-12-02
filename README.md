@@ -76,6 +76,7 @@ Other than the validation tags, Firevault supports the following built-in tags:
 - `omitempty_create` - Works the same way as `omitempty`, but only for the `Create` method. Ignored during `Update` and `Validate` methods.
 - `omitempty_update` - Works the same way as `omitempty`, but only for the `Update` method. Ignored during `Create` and `Validate` methods.
 - `omitempty_validate` - Works the same way as `omitempty`, but only for the `Validate` method. Ignored during `Create` and `Update` methods.
+- `dive` - If the field is an array/slice or a map, this tag allows to recursively loop through and validate inner fields. Useful when the inner fields are structs with custom validation tags. Ignored for fields that are not arrays/slices or maps.
 - `-` - Ignores the field.
 
 Validations
