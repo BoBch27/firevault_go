@@ -199,86 +199,107 @@ func (v *validator) validateFields(
 
 	// iterate over struct fields
 	for i := 0; i < rs.values.NumField(); i++ {
-		fieldValue := rs.values.Field(i)
-		fieldType := rs.types.Field(i)
-
-		fs := &fieldScope{
-			strct:        rs.values,
-			field:        fieldType.Name,
-			structField:  fieldType.Name,
-			displayField: v.getDisplayName(fieldType.Name),
-			value:        fieldValue,
-			kind:         fieldValue.Kind(),
-			typ:          fieldType.Type,
-		}
-
-		tag := fieldType.Tag.Get("firevault")
-
-		if tag == "" || tag == "-" {
-			continue
-		}
-
-		rules := v.parseTag(tag)
-
-		// use first tag rule as new field name, if not empty
-		if rules[0] != "" {
-			fs.field = rules[0]
-		}
-
-		// get dot-separated field and struct path
-		fs.path = v.getFieldPath(path, fs.field)
-		fs.structPath = v.getFieldPath(structPath, fs.structField)
-
-		// check if field is of supported type
-		err := v.validateFieldType(fs.value, fs.path)
+		// process each individual field
+		// (has side effects as it updates original struct after transformation)
+		fieldName, fieldValue, err := v.processField(ctx, rs, i, path, structPath, opts)
 		if err != nil {
 			return nil, err
 		}
 
-		// check if field should be skipped based on provided rules
-		if v.shouldSkipField(fs.value, fs.path, rules, opts) {
-			continue
+		if fieldName != "" && fieldValue != nil {
+			dataMap[fieldName] = fieldValue
 		}
-
-		// check whether to dive into slice/map field
-		fs.dive = slices.Contains(rules, "dive")
-
-		// remove name, dive and omitempty from rules, so no validation is attempted
-		fs.rules = v.cleanRules(rules)
-
-		// get pointer value, only if it's not nil
-		if fs.kind == reflect.Pointer || fs.kind == reflect.Ptr {
-			if !fs.value.IsNil() {
-				fs.value = fs.value.Elem()
-				fs.kind = fs.value.Kind()
-				fs.typ = fs.value.Type()
-			}
-		}
-
-		// apply rules (both transformations and validations)
-		// unless skipped using options
-		if !opts.skipValidation {
-			err := v.applyRules(ctx, fs)
-			if err != nil {
-				return nil, err
-			}
-
-			// set original struct's field value if changed
-			if fieldValue != fs.value {
-				rs.values.Field(i).Set(fs.value)
-			}
-		}
-
-		// get the final value to be added to the data map
-		finalValue, err := v.processFinalValue(ctx, fs, opts)
-		if err != nil {
-			return nil, err
-		}
-
-		dataMap[fs.field] = finalValue
 	}
 
 	return dataMap, nil
+}
+
+// process individual field validations and transformations
+func (v *validator) processField(
+	ctx context.Context,
+	rs reflectedStruct,
+	fieldIndex int,
+	path string,
+	structPath string,
+	opts validationOpts,
+) (string, interface{}, error) {
+	fieldValue := rs.values.Field(fieldIndex)
+	fieldType := rs.types.Field(fieldIndex)
+
+	tag := fieldType.Tag.Get("firevault")
+
+	// skip fields without firevault tag, or with an ignore tag
+	if tag == "" || tag == "-" {
+		return "", nil, nil
+	}
+
+	fs := &fieldScope{
+		strct:        rs.values,
+		field:        fieldType.Name,
+		structField:  fieldType.Name,
+		displayField: v.getDisplayName(fieldType.Name),
+		value:        fieldValue,
+		kind:         fieldValue.Kind(),
+		typ:          fieldType.Type,
+	}
+
+	// parse tag into separate rules
+	rules := v.parseTag(tag)
+
+	// use first tag rule as new field name, if not empty
+	if rules[0] != "" {
+		fs.field = rules[0]
+	}
+
+	// get dot-separated field and struct path
+	fs.path = v.getFieldPath(path, fs.field)
+	fs.structPath = v.getFieldPath(structPath, fs.structField)
+
+	// check if field is of supported type
+	err := v.validateFieldType(fs.value, fs.path)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// check if field should be skipped based on provided rules
+	if v.shouldSkipField(fs.value, fs.path, rules, opts) {
+		return "", nil, nil
+	}
+
+	// check whether to dive into slice/map field
+	fs.dive = slices.Contains(rules, "dive")
+
+	// remove name, dive and omitempty from rules, so no validation is attempted
+	fs.rules = v.cleanRules(rules)
+
+	// get pointer value, only if it's not nil
+	if fs.kind == reflect.Pointer && !fs.value.IsNil() {
+		fs.value = fs.value.Elem()
+		fs.kind = fs.value.Kind()
+		fs.typ = fs.value.Type()
+	}
+
+	// apply rules (both transformations and validations)
+	// unless skipped using options
+	if !opts.skipValidation {
+		err := v.applyRules(ctx, fs)
+		if err != nil {
+			return "", nil, err
+		}
+
+		// set original struct's field value if changed
+		if fieldValue != fs.value {
+			rs.values.Field(fieldIndex).Set(fs.value)
+		}
+	}
+
+	// get the final value to be added to the data map
+	finalValue, err := v.processFinalValue(ctx, fs, opts)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return fs.field, finalValue, nil
 }
 
 // parse rule tags
