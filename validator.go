@@ -244,7 +244,7 @@ func (v *validator) validateFields(
 		fs.dive = slices.Contains(rules, "dive")
 
 		// remove name, dive and omitempty tags from rules, so no validation is attempted
-		rules = v.cleanRules(rules)
+		fs.rules = v.cleanRules(rules)
 
 		// get pointer value, only if it's not nil
 		if fs.kind == reflect.Pointer || fs.kind == reflect.Ptr {
@@ -258,7 +258,7 @@ func (v *validator) validateFields(
 		// apply rules (both transformations and validations)
 		// unless skipped using options
 		if !opts.skipValidation {
-			err := v.applyRules(ctx, fs, rules)
+			err := v.applyRules(ctx, fs)
 			if err != nil {
 				return nil, err
 			}
@@ -279,6 +279,20 @@ func (v *validator) validateFields(
 	}
 
 	return dataMap, nil
+}
+
+// parse rule tags
+func (v *validator) parseTag(tag string) []string {
+	rules := strings.Split(tag, ",")
+
+	var validatedRules []string
+
+	for _, rule := range rules {
+		trimmedRule := strings.TrimSpace(rule)
+		validatedRules = append(validatedRules, trimmedRule)
+	}
+
+	return validatedRules
 }
 
 // get dot-separated field path
@@ -359,9 +373,8 @@ func (v *validator) cleanRules(rules []string) []string {
 func (v *validator) applyRules(
 	ctx context.Context,
 	fs *fieldScope,
-	rules []string,
 ) error {
-	for _, rule := range rules {
+	for _, rule := range fs.rules {
 		fe := &fieldError{
 			field:        fs.field,
 			structField:  fs.structField,
@@ -541,20 +554,6 @@ func (v *validator) processSliceValue(
 	}
 
 	return newSlice, nil
-}
-
-// parse rule tags
-func (v *validator) parseTag(tag string) []string {
-	rules := strings.Split(tag, ",")
-
-	var validatedRules []string
-
-	for _, rule := range rules {
-		trimmedRule := strings.TrimSpace(rule)
-		validatedRules = append(validatedRules, trimmedRule)
-	}
-
-	return validatedRules
 }
 
 // format fieldError

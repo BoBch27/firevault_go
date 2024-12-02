@@ -18,6 +18,7 @@ type fieldScope struct {
 	tag          string
 	param        string
 	dive         bool
+	rules        []string
 }
 
 // A Firevault FieldScope interface gives access
