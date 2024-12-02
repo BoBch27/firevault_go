@@ -434,7 +434,12 @@ func (v *validator) processFinalValue(
 ) (interface{}, error) {
 	switch fs.kind {
 	case reflect.Struct:
-		return v.processStructValue(ctx, fs, opts)
+		// handle time.Time
+		if fs.typ == reflect.TypeOf(time.Time{}) {
+			return fs.value.Interface().(time.Time), nil
+		}
+
+		return v.validateFields(ctx, reflectedStruct{fs.typ, fs.value}, fs.path, fs.structPath, opts)
 	case reflect.Map:
 		return v.processMapValue(ctx, fs, opts)
 	case reflect.Array, reflect.Slice:
@@ -442,26 +447,6 @@ func (v *validator) processFinalValue(
 	default:
 		return fs.value.Interface(), nil
 	}
-}
-
-// get value if field is a struct
-func (v *validator) processStructValue(
-	ctx context.Context,
-	fs *fieldScope,
-	opts validationOpts,
-) (interface{}, error) {
-	// handle time.Time
-	if fs.typ == reflect.TypeOf(time.Time{}) {
-		return fs.value.Interface().(time.Time), nil
-	}
-
-	return v.validateFields(
-		ctx,
-		reflectedStruct{fs.typ, fs.value},
-		fs.path,
-		fs.structPath,
-		opts,
-	)
 }
 
 // get value if field is a map
