@@ -276,7 +276,7 @@ func TestErrorFormatting(t *testing.T) {
 			errorFormatters: []ErrorFormatterFn{
 				func(fe FieldError) error {
 					// Create a custom error message for required fields
-					if fe.Tag() == "required" {
+					if fe.Rule() == "required" {
 						return fmt.Errorf("custom required error: %s is mandatory", fe.DisplayField())
 					}
 					return nil
@@ -293,14 +293,14 @@ func TestErrorFormatting(t *testing.T) {
 			errorFormatters: []ErrorFormatterFn{
 				func(fe FieldError) error {
 					// First error formatter
-					if fe.Tag() == "required" {
+					if fe.Rule() == "required" {
 						return fmt.Errorf("first formatter: %s is required", fe.DisplayField())
 					}
 					return nil
 				},
 				func(fe FieldError) error {
 					// Second error formatter (should not be called)
-					if fe.Tag() == "required" {
+					if fe.Rule() == "required" {
 						return fmt.Errorf("second formatter: %s is mandatory", fe.DisplayField())
 					}
 					return nil
@@ -321,7 +321,7 @@ func TestErrorFormatting(t *testing.T) {
 				},
 				func(fe FieldError) error {
 					// Second formatter handles the error
-					if fe.Tag() == "required" {
+					if fe.Rule() == "required" {
 						return fmt.Errorf("second formatter: %s is mandatory", fe.DisplayField())
 					}
 					return nil

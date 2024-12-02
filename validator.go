@@ -389,8 +389,8 @@ func (v *validator) applyRules(
 		if strings.HasPrefix(rule, "transform=") {
 			transName := strings.TrimPrefix(rule, "transform=")
 
-			fe.tag = transName
-			fs.tag = transName
+			fe.rule = transName
+			fs.rule = transName
 
 			if transformation, ok := v.transformations[transName]; ok {
 				// skip processing if field is zero, unless stated otherwise during rule registration
@@ -416,8 +416,8 @@ func (v *validator) applyRules(
 			// get param value if present
 			rule, param, _ := strings.Cut(rule, "=")
 
-			fe.tag = rule
-			fs.tag = rule
+			fe.rule = rule
+			fs.rule = rule
 			fe.param = param
 			fs.param = param
 

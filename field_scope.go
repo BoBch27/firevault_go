@@ -15,7 +15,7 @@ type fieldScope struct {
 	value        reflect.Value
 	kind         reflect.Kind
 	typ          reflect.Type
-	tag          string
+	rule         string
 	param        string
 	dive         bool
 	rules        []string
@@ -57,8 +57,8 @@ type FieldScope interface {
 	// Type returns the Value's reflect Type
 	// (eg. time.Time's type is time.Time).
 	Type() reflect.Type
-	// Tag returns the current validation's tag name.
-	Tag() string
+	// Rule returns the current validation's rule name.
+	Rule() string
 	// Param returns the param value, in string form
 	// for comparison.
 	Param() string
@@ -124,9 +124,9 @@ func (fs *fieldScope) Type() reflect.Type {
 	return fs.typ
 }
 
-// Tag returns the current validation's tag name.
-func (fs *fieldScope) Tag() string {
-	return fs.tag
+// Rule returns the current validation's rule name.
+func (fs *fieldScope) Rule() string {
+	return fs.rule
 }
 
 // Param returns the param value, in string form

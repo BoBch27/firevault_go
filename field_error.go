@@ -18,7 +18,7 @@ type fieldError struct {
 	value        interface{}
 	kind         reflect.Kind
 	typ          reflect.Type
-	tag          string
+	rule         string
 	param        string
 }
 
@@ -56,8 +56,8 @@ type FieldError interface {
 	// Type returns the Value's reflect Type
 	// (eg. time.Time's type is time.Time).
 	Type() reflect.Type
-	// Tag returns the validation tag that failed.
-	Tag() string
+	// Rule returns the validation rule that failed.
+	Rule() string
 	// Param returns the param value, in string form
 	// for comparison.
 	Param() string
@@ -119,9 +119,9 @@ func (fe *fieldError) Type() reflect.Type {
 	return fe.typ
 }
 
-// Tag returns the validation tag that failed.
-func (fe *fieldError) Tag() string {
-	return fe.tag
+// Rule returns the validation rule that failed.
+func (fe *fieldError) Rule() string {
+	return fe.rule
 }
 
 // Param returns the param value, in string form
@@ -132,5 +132,5 @@ func (fe *fieldError) Param() string {
 
 // Error returns the error message.
 func (fe *fieldError) Error() string {
-	return fmt.Sprintf("firevault: field validation for '%s' failed on the '%s' tag", fe.field, fe.tag)
+	return fmt.Sprintf("firevault: field validation for '%s' failed on the '%s' rule", fe.field, fe.rule)
 }
