@@ -408,57 +408,93 @@ func (v *validator) applyRules(
 		}
 
 		if strings.HasPrefix(rule, "transform=") {
-			transName := strings.TrimPrefix(rule, "transform=")
-
-			fe.rule = transName
-			fs.rule = transName
-
-			if transformation, ok := v.transformations[transName]; ok {
-				// skip processing if field is zero, unless stated otherwise during rule registration
-				if !hasValue(fs.value) && !transformation.runOnNil {
-					continue
-				}
-
-				newValue, err := transformation.fn(ctx, fs)
-				if err != nil {
-					return err
-				}
-
-				// check if rule returned a new value and assign it
-				if newValue != fs.value.Interface() {
-					fs.value = reflect.ValueOf(newValue)
-					fs.kind = fs.value.Kind()
-					fs.typ = fs.value.Type()
-				}
-			} else {
-				return v.formatErr(fe)
+			err := v.applyTransformation(ctx, fs, fe, rule)
+			if err != nil {
+				return err
 			}
-		} else {
-			// get param value if present
-			rule, param, _ := strings.Cut(rule, "=")
 
-			fe.rule = rule
-			fs.rule = rule
-			fe.param = param
-			fs.param = param
-
-			if validation, ok := v.validations[rule]; ok {
-				// skip processing if field is zero, unless stated otherwise during rule registration
-				if !hasValue(fs.value) && !validation.runOnNil {
-					continue
-				}
-
-				ok, err := validation.fn(ctx, fs)
-				if err != nil {
-					return err
-				}
-				if !ok {
-					return v.formatErr(fe)
-				}
-			} else {
-				return v.formatErr(fe)
-			}
+			continue
 		}
+
+		err := v.applyValidation(ctx, fs, fe, rule)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// apply transformation rule
+func (v *validator) applyTransformation(
+	ctx context.Context,
+	fs *fieldScope,
+	fe *fieldError,
+	rule string,
+) error {
+	// extract rule
+	transName := strings.TrimPrefix(rule, "transform=")
+
+	fe.rule = transName
+	fs.rule = transName
+
+	transformation, ok := v.transformations[transName]
+	if !ok {
+		return v.formatErr(fe)
+	}
+
+	// skip processing if field is zero, unless stated otherwise during rule registration
+	if !hasValue(fs.value) && !transformation.runOnNil {
+		return nil
+	}
+
+	newValue, err := transformation.fn(ctx, fs)
+	if err != nil {
+		return err
+	}
+
+	// check if transformation returns a new value and assign it
+	if newValue != fs.value.Interface() {
+		fs.value = reflect.ValueOf(newValue)
+		fs.kind = fs.value.Kind()
+		fs.typ = fs.value.Type()
+	}
+
+	return nil
+}
+
+// apply validation rule
+func (v *validator) applyValidation(
+	ctx context.Context,
+	fs *fieldScope,
+	fe *fieldError,
+	rule string,
+) error {
+	// extract rule and optional parameter
+	rule, param, _ := strings.Cut(rule, "=")
+
+	fs.rule = rule
+	fe.rule = rule
+	fs.param = param
+	fe.param = rule
+
+	validation, ok := v.validations[rule]
+	if !ok {
+		return v.formatErr(fe)
+	}
+
+	// skip processing if field is zero, unless stated otherwise during rule registration
+	if !hasValue(fs.value) && !validation.runOnNil {
+		return nil
+	}
+
+	valid, err := validation.fn(ctx, fs)
+	if err != nil {
+		return err
+	}
+
+	if !valid {
+		return v.formatErr(fe)
 	}
 
 	return nil
