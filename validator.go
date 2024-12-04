@@ -45,6 +45,7 @@ type validator struct {
 	errFormatters   []ErrorFormatterFn
 	fieldScopePool  sync.Pool
 	fieldErrorPool  sync.Pool
+	cache           *structCache
 }
 
 func newValidator() *validator {
@@ -62,6 +63,7 @@ func newValidator() *validator {
 				return &fieldError{}
 			},
 		},
+		&structCache{},
 	}
 
 	// Register predefined validators
@@ -201,11 +203,20 @@ func (v *validator) validateFields(
 	// map which will hold all fields to pass to firestore
 	dataMap := make(map[string]interface{}, rs.values.NumField())
 
+	var err error
+	sm, ok := v.cache.Get(rs.types)
+	if !ok {
+		sm, err = v.extractStructCache(rs, path, structPath, opts) // create cache
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// iterate over struct fields
 	for i := 0; i < rs.values.NumField(); i++ {
 		// process individual field
 		// (has side effects as it updates original struct after transformation)
-		fieldName, fieldValue, err := v.processField(ctx, rs, i, path, structPath, opts)
+		fieldName, fieldValue, err := v.processField(ctx, rs, rs.values.Field(i), sm.fields[i], opts)
 		if err != nil {
 			return nil, err
 		}
@@ -218,91 +229,123 @@ func (v *validator) validateFields(
 	return dataMap, nil
 }
 
+func (v *validator) extractStructCache(
+	rs reflectedStruct,
+	path string,
+	structPath string,
+	opts validationOpts,
+) (*structMetadata, error) {
+	sm := &structMetadata{
+		name:   rs.types.Name(),
+		fields: make([]*fieldMetadata, rs.types.NumField()),
+	}
+
+	for i := 0; i < rs.values.NumField(); i++ {
+		fieldValue := rs.values.Field(i)
+		fieldType := rs.types.Field(i)
+
+		// skip fields without firevault tag, or with an ignore tag
+		tag := fieldType.Tag.Get("firevault")
+		if tag == "" || tag == "-" {
+			continue
+		}
+
+		fs := v.fieldScopePool.Get().(*fieldScope)
+		defer v.fieldScopePool.Put(fs)
+		*fs = fieldScope{
+			strct:       rs.values,
+			field:       fieldType.Name,
+			structField: fieldType.Name,
+			value:       fieldValue,
+			kind:        fieldValue.Kind(),
+			typ:         fieldType.Type,
+		}
+
+		rules := v.parseTag(tag)
+
+		// use first tag rule as new field name, if not empty
+		if rules[0] != "" {
+			fs.field = rules[0]
+		}
+
+		// get dot-separated field and struct path
+		fs.path = v.getFieldPath(path, fs.field)
+		fs.structPath = v.getFieldPath(structPath, fs.structField)
+
+		// check if field is of supported type
+		err := v.validateFieldType(fs.kind, fs.path)
+		if err != nil {
+			return nil, err
+		}
+
+		fm := &fieldMetadata{
+			fieldScope: *fs,
+			idx:        i,
+		}
+
+		// check if field should be skipped based on provided tags
+		if v.shouldSkipField(fs, rules, opts) {
+			fm.ignore = true
+		}
+
+		// remove omitempty tags from rules, so no validation is attempted
+		rules = v.cleanRules(rules)
+		fm.rules = rules
+
+		// get pointer value, only if it's not nil
+		if fs.kind == reflect.Pointer && !fs.value.IsNil() {
+			fs.value = fs.value.Elem()
+			fs.kind = fs.value.Kind()
+			fs.typ = fs.value.Type()
+		}
+
+		if fs.kind == reflect.Struct {
+			fm.nested = true
+		}
+
+		sm.fields[i] = fm
+	}
+
+	v.cache.Set(rs.types, sm)
+	return sm, nil
+}
+
 // process individual field validations and transformations
 func (v *validator) processField(
 	ctx context.Context,
 	rs reflectedStruct,
-	fieldIndex int,
-	path string,
-	structPath string,
+	val reflect.Value,
+	fm *fieldMetadata,
 	opts validationOpts,
 ) (string, interface{}, error) {
-	fieldValue := rs.values.Field(fieldIndex)
-	fieldType := rs.types.Field(fieldIndex)
-
-	// skip fields without firevault tag, or with an ignore tag
-	tag := fieldType.Tag.Get("firevault")
-	if tag == "" || tag == "-" {
-		return "", nil, nil
-	}
-
-	fs := v.fieldScopePool.Get().(*fieldScope)
-	defer v.fieldScopePool.Put(fs)
-	*fs = fieldScope{
-		strct:       rs.values,
-		field:       fieldType.Name,
-		structField: fieldType.Name,
-		value:       fieldValue,
-		kind:        fieldValue.Kind(),
-		typ:         fieldType.Type,
-	}
-
-	rules := v.parseTag(tag)
-
-	// use first tag rule as new field name, if not empty
-	if rules[0] != "" {
-		fs.field = rules[0]
-	}
-
-	// get dot-separated field and struct path
-	fs.path = v.getFieldPath(path, fs.field)
-	fs.structPath = v.getFieldPath(structPath, fs.structField)
-
-	// check if field is of supported type
-	err := v.validateFieldType(fs.kind, fs.path)
-	if err != nil {
-		return "", nil, err
-	}
-
-	// check if field should be skipped based on provided tags
-	if v.shouldSkipField(fs, rules, opts) {
-		return "", nil, nil
-	}
-
-	// remove omitempty tags from rules, so no validation is attempted
-	rules = v.cleanRules(rules)
-
-	// get pointer value, only if it's not nil
-	if fs.kind == reflect.Pointer && !fs.value.IsNil() {
-		fs.value = fs.value.Elem()
-		fs.kind = fs.value.Kind()
-		fs.typ = fs.value.Type()
-	}
+	// update cache to use new value
+	fieldValue := val
+	fm.fieldScope.value = val
 
 	// apply rules (both transformations and validations)
 	// unless skipped using options
 	if !opts.skipValidation {
 		// (has side effects as it updates fs values)
-		err := v.applyRules(ctx, fs, rules)
+		err := v.applyRules(ctx, fm)
 		if err != nil {
 			return "", nil, err
 		}
 
 		if opts.modifyOriginal {
 			// set original struct's field value if changed
-			if fieldValue != fs.value {
-				rs.values.Field(fieldIndex).Set(fs.value)
+			if fieldValue != (&fm.fieldScope).value {
+				rs.values.Field(fm.idx).Set(fm.value)
 			}
 		}
 	}
 
 	// get the final value to be added to the data map
-	finalValue, err := v.processFinalValue(ctx, fs, opts)
+	finalValue, err := v.processFinalValue(ctx, &fm.fieldScope, opts)
 	if err != nil {
 		return "", nil, err
 	}
 
-	return fs.field, finalValue, nil
+	return fm.field, finalValue, nil
 }
 
 // get dot-separated field path
@@ -357,24 +400,23 @@ func (v *validator) cleanRules(rules []string) []string {
 // validate field based on rules
 func (v *validator) applyRules(
 	ctx context.Context,
-	fs *fieldScope,
-	rules []string,
+	fm *fieldMetadata,
 ) error {
-	for _, rule := range rules {
+	for _, rule := range fm.rules {
 		fe := v.fieldErrorPool.Get().(*fieldError)
 		defer v.fieldErrorPool.Put(fe)
 		*fe = fieldError{
-			field:       fs.field,
-			structField: fs.structField,
-			path:        fs.path,
-			structPath:  fs.structPath,
-			value:       fs.value.Interface(),
-			kind:        fs.kind,
-			typ:         fs.typ,
+			field:       fm.field,
+			structField: fm.structField,
+			path:        fm.path,
+			structPath:  fm.structPath,
+			value:       fm.value.Interface(),
+			kind:        fm.kind,
+			typ:         fm.typ,
 		}
 
 		if strings.HasPrefix(rule, "transform=") {
-			err := v.applyTransformation(ctx, fs, fe, rule)
+			err := v.applyTransformation(ctx, fm, fe, rule)
 			if err != nil {
 				return err
 			}
@@ -382,7 +424,7 @@ func (v *validator) applyRules(
 			continue
 		}
 
-		err := v.applyValidation(ctx, fs, fe, rule)
+		err := v.applyValidation(ctx, fm, fe, rule)
 		if err != nil {
 			return err
 		}
@@ -394,14 +436,14 @@ func (v *validator) applyRules(
 // apply transformation rule
 func (v *validator) applyTransformation(
 	ctx context.Context,
-	fs *fieldScope,
+	fm *fieldMetadata,
 	fe *fieldError,
 	rule string,
 ) error {
 	// extract rule
 	transName := strings.TrimPrefix(rule, "transform=")
 	fe.tag = transName
-	fs.tag = transName
+	fm.fieldScope.tag = transName
 
 	transformation, ok := v.transformations[transName]
 	if !ok {
@@ -409,20 +451,20 @@ func (v *validator) applyTransformation(
 	}
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
-	if !hasValue(fs.kind, fs.value) && !transformation.runOnNil {
+	if !hasValue(fm.kind, fm.value) && !transformation.runOnNil {
 		return nil
 	}
 
-	newValue, err := transformation.fn(ctx, fs)
+	newValue, err := transformation.fn(ctx, &fm.fieldScope)
 	if err != nil {
 		return err
 	}
 
 	// check if transformation returns a new value and assign it
-	if newValue != fs.value.Interface() {
-		fs.value = reflect.ValueOf(newValue)
-		fs.kind = fs.value.Kind()
-		fs.typ = fs.value.Type()
+	if newValue != fm.value.Interface() {
+		fm.fieldScope.value = reflect.ValueOf(newValue)
+		fm.fieldScope.kind = fm.value.Kind()
+		fm.fieldScope.typ = fm.value.Type()
 	}
 
 	return nil
@@ -431,15 +473,15 @@ func (v *validator) applyTransformation(
 // apply validation rule
 func (v *validator) applyValidation(
 	ctx context.Context,
-	fs *fieldScope,
+	fm *fieldMetadata,
 	fe *fieldError,
 	rule string,
 ) error {
 	// extract rule and optional parameter
 	rule, param, _ := strings.Cut(rule, "=")
-	fs.tag = rule
+	fm.fieldScope.tag = rule
 	fe.tag = rule
-	fs.param = param
+	fm.fieldScope.param = param
 	fe.param = rule
 
 	validation, ok := v.validations[rule]
@@ -448,11 +490,11 @@ func (v *validator) applyValidation(
 	}
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
-	if !hasValue(fs.kind, fs.value) && !validation.runOnNil {
+	if !hasValue(fm.kind, fm.value) && !validation.runOnNil {
 		return nil
 	}
 
-	valid, err := validation.fn(ctx, fs)
+	valid, err := validation.fn(ctx, &fm.fieldScope)
 	if err != nil {
 		return err
 	}
