@@ -3,12 +3,10 @@ package firevault
 import (
 	"reflect"
 	"sync"
-	"sync/atomic"
 )
 
 type structCache struct {
-	lock sync.Mutex
-	m    atomic.Value // map[reflect.Type]*structMetadata
+	sync.Map // map[reflect.Type]*structMetadata
 }
 
 type structMetadata struct {
@@ -40,35 +38,18 @@ type tagMetadata struct {
 
 // initialize with an empty map
 func newStructCache() *structCache {
-	sc := &structCache{}
-	sc.m.Store(make(map[reflect.Type]*structMetadata))
-	return sc
+	return &structCache{}
 }
 
 func (sc *structCache) get(structType reflect.Type) (*structMetadata, bool) {
-	m := sc.m.Load().(map[reflect.Type]*structMetadata)
-	val, found := m[structType]
-	return val, found
+	c, ok := sc.Load(structType)
+	if !ok {
+		return nil, false
+	}
+
+	return c.(*structMetadata), true
 }
 
 func (sc *structCache) set(structType reflect.Type, structData *structMetadata) {
-	sc.lock.Lock()
-	defer sc.lock.Unlock()
-
-	// Get current map
-	m := sc.m.Load().(map[reflect.Type]*structMetadata)
-
-	// Create new map with increased capacity
-	nm := make(map[reflect.Type]*structMetadata, len(m)+1)
-
-	// Copy existing entries
-	for k, v := range m {
-		nm[k] = v
-	}
-
-	// Add new entry
-	nm[structType] = structData
-
-	// Atomically store new map
-	sc.m.Store(nm)
+	sc.Store(structType, structData)
 }

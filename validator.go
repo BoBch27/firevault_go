@@ -403,20 +403,8 @@ func (v *validator) applyRules(
 	fm *fieldMetadata,
 ) error {
 	for _, rule := range fm.rules {
-		fe := v.fieldErrorPool.Get().(*fieldError)
-		defer v.fieldErrorPool.Put(fe)
-		*fe = fieldError{
-			field:       fm.field,
-			structField: fm.structField,
-			path:        fm.path,
-			structPath:  fm.structPath,
-			value:       fm.value.Interface(),
-			kind:        fm.kind,
-			typ:         fm.typ,
-		}
-
 		if rule.isTransform {
-			err := v.applyTransformation(ctx, fm, fe, rule)
+			err := v.applyTransformation(ctx, fm, rule)
 			if err != nil {
 				return err
 			}
@@ -424,7 +412,7 @@ func (v *validator) applyRules(
 			continue
 		}
 
-		err := v.applyValidation(ctx, fm, fe, rule)
+		err := v.applyValidation(ctx, fm, rule)
 		if err != nil {
 			return err
 		}
@@ -437,10 +425,8 @@ func (v *validator) applyRules(
 func (v *validator) applyTransformation(
 	ctx context.Context,
 	fm *fieldMetadata,
-	fe *fieldError,
 	rule *tagMetadata,
 ) error {
-	fe.tag = rule.rule
 	fm.fieldScope.tag = rule.rule
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
@@ -467,13 +453,10 @@ func (v *validator) applyTransformation(
 func (v *validator) applyValidation(
 	ctx context.Context,
 	fm *fieldMetadata,
-	fe *fieldError,
 	rule *tagMetadata,
 ) error {
 	fm.fieldScope.tag = rule.rule
-	fe.tag = rule.rule
 	fm.fieldScope.param = rule.param
-	fe.param = rule.param
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
 	if !hasValue(fm.kind, fm.value) && !rule.runOnNil {
@@ -486,7 +469,7 @@ func (v *validator) applyValidation(
 	}
 
 	if !valid {
-		return v.formatErr(fe)
+		return v.formatErr(&fm.fieldScope)
 	}
 
 	return nil
@@ -616,10 +599,23 @@ func (v *validator) parseTag(tag string) []string {
 }
 
 // format fieldError
-func (v *validator) formatErr(fe *fieldError) error {
+func (v *validator) formatErr(fs *fieldScope) error {
 	// set display field
 	// done here so expensive regex matching is only done when an error must be returned
-	fe.displayField = v.getDisplayName(fe.structField)
+	fe := v.fieldErrorPool.Get().(*fieldError)
+	defer v.fieldErrorPool.Put(fe)
+	*fe = fieldError{
+		field:        fs.field,
+		structField:  fs.structField,
+		displayField: v.getDisplayName(fs.structField),
+		path:         fs.path,
+		structPath:   fs.structPath,
+		value:        fs.value.Interface(),
+		kind:         fs.kind,
+		typ:          fs.typ,
+		tag:          fs.tag,
+		param:        fs.param,
+	}
 
 	for _, formatter := range v.errFormatters {
 		err := formatter(fe)

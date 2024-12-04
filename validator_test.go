@@ -184,7 +184,6 @@ func TestIndividualValidations(t *testing.T) {
 		})
 	}
 }
-
 func TestCustomRules(t *testing.T) {
 	v := newValidator()
 
