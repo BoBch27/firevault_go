@@ -63,7 +63,7 @@ func newValidator() *validator {
 				return &fieldError{}
 			},
 		},
-		&structCache{},
+		newStructCache(),
 	}
 
 	// Register predefined validators
@@ -204,7 +204,7 @@ func (v *validator) validateFields(
 	dataMap := make(map[string]interface{}, rs.values.NumField())
 
 	var err error
-	sm, ok := v.cache.Get(rs.types)
+	sm, ok := v.cache.get(rs.types)
 	if !ok {
 		sm, err = v.extractStructCache(rs, path, structPath, opts) // create cache
 		if err != nil {
@@ -290,7 +290,7 @@ func (v *validator) extractStructCache(
 
 		// remove omitempty tags from rules, so no validation is attempted
 		rules = v.cleanRules(rules)
-		fm.rules = rules
+		fm.rules = v.extractTagCache(rules)
 
 		// get pointer value, only if it's not nil
 		if fs.kind == reflect.Pointer && !fs.value.IsNil() {
@@ -306,7 +306,7 @@ func (v *validator) extractStructCache(
 		sm.fields[i] = fm
 	}
 
-	v.cache.Set(rs.types, sm)
+	v.cache.set(rs.types, sm)
 	return sm, nil
 }
 
@@ -415,7 +415,7 @@ func (v *validator) applyRules(
 			typ:         fm.typ,
 		}
 
-		if strings.HasPrefix(rule, "transform=") {
+		if rule.isTransform {
 			err := v.applyTransformation(ctx, fm, fe, rule)
 			if err != nil {
 				return err
@@ -438,24 +438,17 @@ func (v *validator) applyTransformation(
 	ctx context.Context,
 	fm *fieldMetadata,
 	fe *fieldError,
-	rule string,
+	rule *tagMetadata,
 ) error {
-	// extract rule
-	transName := strings.TrimPrefix(rule, "transform=")
-	fe.tag = transName
-	fm.fieldScope.tag = transName
-
-	transformation, ok := v.transformations[transName]
-	if !ok {
-		return v.formatErr(fe)
-	}
+	fe.tag = rule.rule
+	fm.fieldScope.tag = rule.rule
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
-	if !hasValue(fm.kind, fm.value) && !transformation.runOnNil {
+	if !hasValue(fm.kind, fm.value) && !rule.runOnNil {
 		return nil
 	}
 
-	newValue, err := transformation.fn(ctx, &fm.fieldScope)
+	newValue, err := rule.transFn(ctx, &fm.fieldScope)
 	if err != nil {
 		return err
 	}
@@ -475,26 +468,19 @@ func (v *validator) applyValidation(
 	ctx context.Context,
 	fm *fieldMetadata,
 	fe *fieldError,
-	rule string,
+	rule *tagMetadata,
 ) error {
-	// extract rule and optional parameter
-	rule, param, _ := strings.Cut(rule, "=")
-	fm.fieldScope.tag = rule
-	fe.tag = rule
-	fm.fieldScope.param = param
-	fe.param = rule
-
-	validation, ok := v.validations[rule]
-	if !ok {
-		return v.formatErr(fe)
-	}
+	fm.fieldScope.tag = rule.rule
+	fe.tag = rule.rule
+	fm.fieldScope.param = rule.param
+	fe.param = rule.param
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
-	if !hasValue(fm.kind, fm.value) && !validation.runOnNil {
+	if !hasValue(fm.kind, fm.value) && !rule.runOnNil {
 		return nil
 	}
 
-	valid, err := validation.fn(ctx, &fm.fieldScope)
+	valid, err := rule.valFn(ctx, &fm.fieldScope)
 	if err != nil {
 		return err
 	}
@@ -666,4 +652,46 @@ func (v *validator) getDisplayName(fieldName string) string {
 	}
 
 	return fn
+}
+
+func (v *validator) extractTagCache(rules []string) []*tagMetadata {
+	tags := make([]*tagMetadata, 0, len(rules))
+
+	for _, rule := range rules {
+		isTransform := strings.HasPrefix(rule, "transform=")
+		var valFn ValidationFn
+		var transFn TransformationFn
+		var param string
+		var runOnNil bool
+
+		if isTransform {
+			transWrapper, ok := v.transformations[rule]
+			if !ok {
+				continue
+			}
+
+			rule = strings.TrimPrefix(rule, "transform=")
+			transFn = transWrapper.fn
+			runOnNil = transWrapper.runOnNil
+		} else {
+			valWrapper, ok := v.validations[rule]
+			if !ok {
+				continue
+			}
+
+			rule, param, _ = strings.Cut(rule, "=")
+			valFn = valWrapper.fn
+			runOnNil = valWrapper.runOnNil
+		}
+
+		tags = append(tags, &tagMetadata{
+			rule:     rule,
+			valFn:    valFn,
+			transFn:  transFn,
+			param:    param,
+			runOnNil: runOnNil,
+		})
+	}
+
+	return tags
 }
