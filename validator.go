@@ -665,31 +665,34 @@ func (v *validator) extractTagCache(rules []string) []*tagMetadata {
 		var runOnNil bool
 
 		if isTransform {
+			rule = strings.TrimPrefix(rule, "transform=")
+
 			transWrapper, ok := v.transformations[rule]
 			if !ok {
 				continue
 			}
 
-			rule = strings.TrimPrefix(rule, "transform=")
 			transFn = transWrapper.fn
 			runOnNil = transWrapper.runOnNil
 		} else {
+			rule, param, _ = strings.Cut(rule, "=")
+
 			valWrapper, ok := v.validations[rule]
 			if !ok {
 				continue
 			}
 
-			rule, param, _ = strings.Cut(rule, "=")
 			valFn = valWrapper.fn
 			runOnNil = valWrapper.runOnNil
 		}
 
 		tags = append(tags, &tagMetadata{
-			rule:     rule,
-			valFn:    valFn,
-			transFn:  transFn,
-			param:    param,
-			runOnNil: runOnNil,
+			rule:        rule,
+			valFn:       valFn,
+			transFn:     transFn,
+			isTransform: isTransform,
+			param:       param,
+			runOnNil:    runOnNil,
 		})
 	}
 
