@@ -16,10 +16,10 @@ type structMetadata struct {
 
 type fieldMetadata struct {
 	fieldScope
-	idx    int
-	ignore bool
-	nested bool
-	rules  []*tagMetadata
+	idx       int
+	omitEmpty string
+	nested    bool
+	rules     []*tagMetadata
 }
 
 type tagMetadata struct {

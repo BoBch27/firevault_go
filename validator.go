@@ -203,9 +203,9 @@ func (v *validator) validateFields(
 	// map which will hold all fields to pass to firestore
 	dataMap := make(map[string]interface{}, rs.values.NumField())
 
-	var err error
 	sm, ok := v.cache.get(rs.types)
 	if !ok {
+		var err error
 		sm, err = v.extractStructCache(rs, path, structPath, opts) // create cache
 		if err != nil {
 			return nil, err
@@ -284,9 +284,7 @@ func (v *validator) extractStructCache(
 		}
 
 		// check if field should be skipped based on provided tags
-		if v.shouldSkipField(fs, rules, opts) {
-			fm.ignore = true
-		}
+		fm.omitEmpty = v.shouldSkipField(rules, opts.method)
 
 		// remove omitempty tags from rules, so no validation is attempted
 		rules = v.cleanRules(rules)
@@ -318,6 +316,12 @@ func (v *validator) processField(
 	fm *fieldMetadata,
 	opts validationOpts,
 ) (string, interface{}, error) {
+	// skip empty field with omitempty tags
+	shouldOmit := fm.omitEmpty == "always" || fm.omitEmpty == string(opts.method)
+	if shouldOmit && !slices.Contains(opts.emptyFieldsAllowed, fm.path) && !hasValue(fm.kind, val) {
+		return "", nil, nil
+	}
+
 	// update cache to use new value
 	fieldValue := val
 	fm.fieldScope.value = val
@@ -368,19 +372,16 @@ func (v *validator) validateFieldType(fieldKind reflect.Kind, fieldPath string) 
 
 // skip field validation if value is zero and an omitempty tag is present
 // (unless tags are skipped using options)
-func (v *validator) shouldSkipField(
-	fs *fieldScope,
-	rules []string,
-	opts validationOpts,
-) bool {
-	omitEmptyMethodTag := string("omitempty_" + opts.method)
-	shouldOmitEmpty := slices.Contains(rules, "omitempty") || slices.Contains(rules, omitEmptyMethodTag)
-
-	if shouldOmitEmpty && !slices.Contains(opts.emptyFieldsAllowed, fs.path) {
-		return !hasValue(fs.kind, fs.value)
+func (v *validator) shouldSkipField(rules []string, method methodType) string {
+	if slices.Contains(rules, "omitempty") {
+		return "always"
 	}
 
-	return false
+	if slices.Contains(rules, string("omitempty_"+method)) {
+		return string(method)
+	}
+
+	return ""
 }
 
 // remove omitempty tags from rules
