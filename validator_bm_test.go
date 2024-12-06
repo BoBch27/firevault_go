@@ -33,7 +33,87 @@ func BenchmarkValidateSimpleStruct(b *testing.B) {
 	}
 }
 
-func BenchmarkValidateNestedStruct(b *testing.B) {
+func BenchmarkValidateWithCustomRules(b *testing.B) {
+	// Register a custom validation and transformation
+	v := newValidator()
+	err := v.registerValidation(
+		"is_thirty",
+		func(ctx context.Context, fs FieldScope) (bool, error) {
+			return fs.Value().Int() == 30, nil
+		},
+		false,
+		true,
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	err = v.registerTransformation(
+		"lowercase",
+		func(ctx context.Context, fs FieldScope) (interface{}, error) {
+			return strings.ToLower(fs.Value().String()), nil
+		},
+		true,
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	type CustomStruct struct {
+		Name  string `firevault:"name,required,min=3"`
+		Email string `firevault:"email,required,email,transform=lowercase"`
+		Age   int    `firevault:"age,min=18,max=120,is_thirty"`
+	}
+
+	ctx := context.Background()
+	opts := validationOpts{method: create}
+
+	// Prepare a valid struct with custom rules
+	validData := &CustomStruct{
+		Name:  "John Doe",
+		Email: "john.doe@example.com",
+		Age:   30,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := v.validate(ctx, validData, opts)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkValidateStructWithSlice(b *testing.B) {
+	type SimpleStruct struct {
+		Name  string   `firevault:"name,required,min=3,max=50"`
+		Email string   `firevault:"email,required,email"`
+		Age   int      `firevault:"age,min=18,max=120"`
+		Tags  []string `firevault:"tags,min=1,max=5"`
+	}
+
+	v := newValidator()
+	ctx := context.Background()
+	opts := validationOpts{method: create}
+
+	// Prepare a valid struct for benchmarking
+	validData := &SimpleStruct{
+		Name:  "John Doe",
+		Email: "john.doe@example.com",
+		Age:   30,
+		Tags:  []string{"tag1", "tag2"},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := v.validate(ctx, validData, opts)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkValidateNestedStructWithSlice(b *testing.B) {
 	type Address struct {
 		Street string `firevault:"street,required"`
 		City   string `firevault:"city,required"`
@@ -74,58 +154,7 @@ func BenchmarkValidateNestedStruct(b *testing.B) {
 	}
 }
 
-func BenchmarkValidateWithCustomRules(b *testing.B) {
-	// Register a custom validation and transformation
-	v := newValidator()
-	err := v.registerValidation(
-		"custom",
-		func(ctx context.Context, fs FieldScope) (bool, error) {
-			return fs.Value().String() == "custom", nil
-		},
-		false,
-		true,
-	)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	err = v.registerTransformation(
-		"uppercase",
-		func(ctx context.Context, fs FieldScope) (interface{}, error) {
-			return strings.ToUpper(fs.Value().String()), nil
-		},
-		true,
-	)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	type CustomStruct struct {
-		CustomField    string `firevault:"custom_field,custom"`
-		UppercaseField string `firevault:"uppercase_field,transform=uppercase"`
-		Name           string `firevault:"name,required,min=3"`
-	}
-
-	ctx := context.Background()
-	opts := validationOpts{method: create}
-
-	// Prepare a valid struct with custom rules
-	validData := &CustomStruct{
-		CustomField:    "custom",
-		UppercaseField: "test",
-		Name:           "John Doe",
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := v.validate(ctx, validData, opts)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkValidateSliceOfStructs(b *testing.B) {
+func BenchmarkValidateSliceOfSimpleStructs(b *testing.B) {
 	type User struct {
 		Name  string `firevault:"name,required,min=3,max=50"`
 		Email string `firevault:"email,required,email"`
