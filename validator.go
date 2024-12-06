@@ -517,6 +517,12 @@ func (v *validator) processMapValue(
 	for iter.Next() {
 		key := iter.Key()
 		val := iter.Value()
+		kind := val.Kind()
+
+		if kind == reflect.Pointer {
+			val = val.Elem()
+			kind = val.Kind()
+		}
 
 		newFs := v.fieldScopePool.Get().(*fieldScope)
 		defer v.fieldScopePool.Put(newFs)
@@ -527,7 +533,7 @@ func (v *validator) processMapValue(
 			path:        fmt.Sprintf("%s.%v", fs.path, key.Interface()),
 			structPath:  fmt.Sprintf("%s.%v", fs.structPath, key.Interface()),
 			value:       val,
-			kind:        val.Kind(),
+			kind:        kind,
 			typ:         val.Type(),
 		}
 
@@ -552,6 +558,12 @@ func (v *validator) processSliceValue(
 
 	for i := 0; i < fs.value.Len(); i++ {
 		val := fs.value.Index(i)
+		kind := val.Kind()
+
+		if kind == reflect.Pointer {
+			val = val.Elem()
+			kind = val.Kind()
+		}
 
 		newFs := v.fieldScopePool.Get().(*fieldScope)
 		defer v.fieldScopePool.Put(newFs)
@@ -562,7 +574,7 @@ func (v *validator) processSliceValue(
 			path:        fmt.Sprintf("%s[%d]", fs.path, i),
 			structPath:  fmt.Sprintf("%s[%d]", fs.structPath, i),
 			value:       val,
-			kind:        val.Kind(),
+			kind:        kind,
 			typ:         val.Type(),
 		}
 
