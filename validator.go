@@ -213,7 +213,7 @@ func (v *validator) validateFields(
 	}
 
 	// iterate over struct fields
-	for i := 0; i < rs.values.NumField(); i++ {
+	for i := 0; i < len(sm.fields); i++ {
 		// process individual field
 		// (has side effects as it updates original struct after transformation)
 		fieldName, fieldValue, err := v.processField(ctx, rs, rs.values.Field(i), sm.fields[i], opts)
@@ -292,13 +292,10 @@ func (v *validator) extractStructCache(
 
 		// get pointer value, only if it's not nil
 		if fs.kind == reflect.Pointer && !fs.value.IsNil() {
-			fs.value = fs.value.Elem()
-			fs.kind = fs.value.Kind()
-			fs.typ = fs.value.Type()
-		}
-
-		if fs.kind == reflect.Struct {
-			fm.nested = true
+			fm.fieldScope.value = fs.value.Elem()
+			fm.fieldScope.kind = fm.value.Kind()
+			fm.fieldScope.typ = fm.value.Type()
+			fm.pointer = true
 		}
 
 		sm.fields[i] = fm
@@ -316,6 +313,10 @@ func (v *validator) processField(
 	fm *fieldMetadata,
 	opts validationOpts,
 ) (string, interface{}, error) {
+	if fm == nil {
+		return "", nil, nil
+	}
+
 	// skip empty field with omitempty tags
 	shouldOmit := fm.omitEmpty == "always" || fm.omitEmpty == string(opts.method)
 	if shouldOmit && !slices.Contains(opts.emptyFieldsAllowed, fm.path) && !hasValue(fm.kind, val) {
@@ -325,6 +326,11 @@ func (v *validator) processField(
 	// update cache to use new value
 	fieldValue := val
 	fm.fieldScope.value = val
+
+	// handle pointers
+	if fm.pointer {
+		fm.fieldScope.value = fm.value.Elem()
+	}
 
 	// apply rules (both transformations and validations)
 	// unless skipped using options

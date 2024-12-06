@@ -18,7 +18,7 @@ type fieldMetadata struct {
 	fieldScope
 	idx       int
 	omitEmpty string
-	nested    bool
+	pointer   bool
 	rules     []*tagMetadata
 }
 
