@@ -292,9 +292,9 @@ func (v *validator) extractStructCache(
 
 		// get pointer value, only if it's not nil
 		if fs.kind == reflect.Pointer && !fs.value.IsNil() {
-			fm.fieldScope.value = fs.value.Elem()
-			fm.fieldScope.kind = fm.value.Kind()
-			fm.fieldScope.typ = fm.value.Type()
+			fm.value = fs.value.Elem()
+			fm.kind = fm.value.Kind()
+			fm.typ = fm.value.Type()
 			fm.pointer = true
 		}
 
@@ -325,11 +325,11 @@ func (v *validator) processField(
 
 	// update cache to use new value
 	fieldValue := val
-	fm.fieldScope.value = val
+	fm.value = val
 
 	// handle pointers
 	if fm.pointer {
-		fm.fieldScope.value = fm.value.Elem()
+		fm.value = fm.value.Elem()
 	}
 
 	// apply rules (both transformations and validations)
@@ -343,7 +343,7 @@ func (v *validator) processField(
 
 		if opts.modifyOriginal {
 			// set original struct's field value if changed
-			if fieldValue != (&fm.fieldScope).value {
+			if fieldValue != fm.value {
 				rs.values.Field(fm.idx).Set(fm.value)
 			}
 		}
@@ -434,7 +434,7 @@ func (v *validator) applyTransformation(
 	fm *fieldMetadata,
 	rule *tagMetadata,
 ) error {
-	fm.fieldScope.tag = rule.rule
+	fm.tag = rule.rule
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
 	if !hasValue(fm.kind, fm.value) && !rule.runOnNil {
@@ -448,9 +448,9 @@ func (v *validator) applyTransformation(
 
 	// check if transformation returns a new value and assign it
 	if newValue != fm.value.Interface() {
-		fm.fieldScope.value = reflect.ValueOf(newValue)
-		fm.fieldScope.kind = fm.value.Kind()
-		fm.fieldScope.typ = fm.value.Type()
+		fm.value = reflect.ValueOf(newValue)
+		fm.kind = fm.value.Kind()
+		fm.typ = fm.value.Type()
 	}
 
 	return nil
@@ -462,8 +462,8 @@ func (v *validator) applyValidation(
 	fm *fieldMetadata,
 	rule *tagMetadata,
 ) error {
-	fm.fieldScope.tag = rule.rule
-	fm.fieldScope.param = rule.param
+	fm.tag = rule.rule
+	fm.param = rule.param
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
 	if !hasValue(fm.kind, fm.value) && !rule.runOnNil {
