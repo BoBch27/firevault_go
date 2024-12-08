@@ -34,7 +34,7 @@ ctx := context.Background()
 
 connection, err := firevault.Connect(ctx, projectID)
 if err != nil {
-  log.Fatalln("Firevault initialisation failed:", err)
+	log.Fatalln("Firevault initialisation failed:", err)
 }
 ```
 
@@ -694,6 +694,12 @@ if err != nil {
 	fmt.Println(id)
 }
 ```
+
+Performance
+------------
+Firevault's built-in validation is designed to be both robust and efficient. Benchmarks indicate that it performs comparably to industry-leading libraries like [go-playground/validator](https://github.com/go-playground/validator), both with and without caching.
+
+For detailed benchmark results, see [BENCHMARKS.md](https://github.com/bobch27/firevault_go/blob/main/BENCHMARKS.md).
 
 Contributing
 ------------
