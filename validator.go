@@ -282,7 +282,7 @@ func (v *validator) processField(
 	// apply rules (both transformations and validations)
 	// unless skipped using options
 	if !opts.skipValidation {
-		err := v.applyRules(ctx, fs)
+		err := v.applyRules(ctx, fs, opts.method)
 		if err != nil {
 			return "", nil, err
 		}
@@ -394,8 +394,20 @@ func (v *validator) cleanRules(rules []string) []string {
 func (v *validator) applyRules(
 	ctx context.Context,
 	fs *fieldScope,
+	method methodType,
 ) error {
 	for _, rule := range fs.rules {
+		// skip method specific required tags which do not match current method
+		if method == validate && (rule == "required_"+string(create) || rule == "required_"+string(update)) {
+			continue
+		}
+		if method == create && (rule == "required_"+string(validate) || rule == "required_"+string(update)) {
+			continue
+		}
+		if method == update && (rule == "required_"+string(create) || rule == "required_"+string(validate)) {
+			continue
+		}
+
 		fe := &fieldError{
 			field:        fs.field,
 			structField:  fs.structField,
