@@ -17,8 +17,22 @@ type fieldScope struct {
 	typ          reflect.Type
 	rule         string
 	param        string
+	idx          int
+	pointer      bool
 	dive         bool
-	rules        []string
+	omitEmpty    string
+	rules        []*ruleData
+}
+
+// ruleData contains the information
+// about each parsed rule.
+type ruleData struct {
+	name        string
+	valFn       ValidationFn
+	transFn     TransformationFn
+	param       string
+	isTransform bool
+	runOnNil    bool
 }
 
 // A Firevault FieldScope interface gives access
