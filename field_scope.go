@@ -11,11 +11,28 @@ type fieldScope struct {
 	structField string
 	path        string
 	structPath  string
+	idx         int
 	value       reflect.Value
 	kind        reflect.Kind
 	typ         reflect.Type
 	tag         string
 	param       string
+
+	// cache data
+	omitEmpty string
+	pointer   bool
+	rules     []*tagMetadata
+}
+
+// tagMetadata contains the information
+// about each parsed rule.
+type tagMetadata struct {
+	rule        string
+	valFn       ValidationFn
+	transFn     TransformationFn
+	param       string
+	isTransform bool
+	runOnNil    bool
 }
 
 // A Firevault FieldScope interface gives access
@@ -38,6 +55,9 @@ type FieldScope interface {
 	// dot-separated path from the stuct
 	// (e.g. "Names.First").
 	StructPath() string
+	// Index returns the field's index within
+	// the reflected struct.
+	Index() int
 	// Value returns the current field's reflected
 	// value to be validated.
 	Value() reflect.Value
@@ -84,6 +104,12 @@ func (fs *fieldScope) Path() string {
 // (e.g. "Names.First").
 func (fs *fieldScope) StructPath() string {
 	return fs.structPath
+}
+
+// Index returns the field's index within
+// the reflected struct.
+func (fs *fieldScope) Index() int {
+	return fs.idx
 }
 
 // Value returns the current field's reflected

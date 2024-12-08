@@ -11,29 +11,7 @@ type structCache struct {
 
 type structMetadata struct {
 	name   string
-	fields []*fieldMetadata
-}
-
-type fieldMetadata struct {
-	fieldScope
-	idx       int
-	omitEmpty string
-	pointer   bool
-	rules     []*tagMetadata
-}
-
-type tagMetadata struct {
-	rule    string
-	valFn   ValidationFn
-	transFn TransformationFn
-	param   string
-	// keys                 *cTag // only populated when using tag's 'keys' and 'endkeys' for map key validation
-	// next                 *cTag
-	// typeof               tagType
-	// hasParam bool // true if parameter used eg. eq= where the equal sign has been set
-	// isBlockEnd           bool // indicates the current tag represents the last validation in the block
-	isTransform bool
-	runOnNil    bool
+	fields []*fieldScope
 }
 
 // initialize with an empty map

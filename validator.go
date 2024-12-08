@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -43,8 +42,6 @@ type validator struct {
 	validations     map[string]valFnWrapper
 	transformations map[string]transFnWrapper
 	errFormatters   []ErrorFormatterFn
-	fieldScopePool  sync.Pool
-	fieldErrorPool  sync.Pool
 	cache           *structCache
 }
 
@@ -53,16 +50,6 @@ func newValidator() *validator {
 		make(map[string]valFnWrapper, len(builtInValidators)),
 		make(map[string]transFnWrapper, 0),
 		make([]ErrorFormatterFn, 0),
-		sync.Pool{
-			New: func() interface{} {
-				return &fieldScope{}
-			},
-		},
-		sync.Pool{
-			New: func() interface{} {
-				return &fieldError{}
-			},
-		},
 		newStructCache(),
 	}
 
@@ -237,7 +224,7 @@ func (v *validator) extractStructCache(
 ) (*structMetadata, error) {
 	sm := &structMetadata{
 		name:   rs.types.Name(),
-		fields: make([]*fieldMetadata, rs.types.NumField()),
+		fields: make([]*fieldScope, rs.types.NumField()),
 	}
 
 	for i := 0; i < rs.values.NumField(); i++ {
@@ -250,12 +237,11 @@ func (v *validator) extractStructCache(
 			continue
 		}
 
-		fs := v.fieldScopePool.Get().(*fieldScope)
-		defer v.fieldScopePool.Put(fs)
-		*fs = fieldScope{
+		fs := &fieldScope{
 			strct:       rs.values,
 			field:       fieldType.Name,
 			structField: fieldType.Name,
+			idx:         i,
 			value:       fieldValue,
 			kind:        fieldValue.Kind(),
 			typ:         fieldType.Type,
@@ -278,27 +264,22 @@ func (v *validator) extractStructCache(
 			return nil, err
 		}
 
-		fm := &fieldMetadata{
-			fieldScope: *fs,
-			idx:        i,
-		}
-
 		// check if field should be skipped based on provided tags
-		fm.omitEmpty = v.shouldSkipField(rules, opts.method)
+		fs.omitEmpty = v.shouldSkipField(rules, opts.method)
 
 		// remove omitempty tags from rules, so no validation is attempted
 		rules = v.cleanRules(rules)
-		fm.rules = v.extractTagCache(rules)
+		fs.rules = v.extractTagCache(rules)
 
 		// get pointer value, only if it's not nil
 		if fs.kind == reflect.Pointer && !fs.value.IsNil() {
-			fm.value = fs.value.Elem()
-			fm.kind = fm.value.Kind()
-			fm.typ = fm.value.Type()
-			fm.pointer = true
+			fs.value = fs.value.Elem()
+			fs.kind = fs.value.Kind()
+			fs.typ = fs.value.Type()
+			fs.pointer = true
 		}
 
-		sm.fields[i] = fm
+		sm.fields[i] = fs
 	}
 
 	v.cache.set(rs.types, sm)
@@ -310,52 +291,48 @@ func (v *validator) processField(
 	ctx context.Context,
 	rs reflectedStruct,
 	val reflect.Value,
-	fm *fieldMetadata,
+	fs *fieldScope,
 	opts validationOpts,
 ) (string, interface{}, error) {
-	if fm == nil {
-		return "", nil, nil
-	}
-
 	// skip empty field with omitempty tags
-	shouldOmit := fm.omitEmpty == "always" || fm.omitEmpty == string(opts.method)
-	if shouldOmit && !slices.Contains(opts.emptyFieldsAllowed, fm.path) && !hasValue(fm.kind, val) {
+	shouldOmit := fs.omitEmpty == "always" || fs.omitEmpty == string(opts.method)
+	if shouldOmit && !slices.Contains(opts.emptyFieldsAllowed, fs.path) && !hasValue(fs.kind, val) {
 		return "", nil, nil
 	}
 
 	// update cache to use new value
 	fieldValue := val
-	fm.value = val
+	fs.value = val
 
 	// handle pointers
-	if fm.pointer {
-		fm.value = fm.value.Elem()
+	if fs.pointer {
+		fs.value = fs.value.Elem()
 	}
 
 	// apply rules (both transformations and validations)
 	// unless skipped using options
 	if !opts.skipValidation {
 		// (has side effects as it updates fs values)
-		err := v.applyRules(ctx, fm)
+		err := v.applyRules(ctx, fs)
 		if err != nil {
 			return "", nil, err
 		}
 
 		if opts.modifyOriginal {
 			// set original struct's field value if changed
-			if fieldValue != fm.value {
-				rs.values.Field(fm.idx).Set(fm.value)
+			if fieldValue != fs.value {
+				rs.values.Field(fs.idx).Set(fs.value)
 			}
 		}
 	}
 
 	// get the final value to be added to the data map
-	finalValue, err := v.processFinalValue(ctx, &fm.fieldScope, opts)
+	finalValue, err := v.processFinalValue(ctx, fs, opts)
 	if err != nil {
 		return "", nil, err
 	}
 
-	return fm.field, finalValue, nil
+	return fs.field, finalValue, nil
 }
 
 // get dot-separated field path
@@ -407,11 +384,11 @@ func (v *validator) cleanRules(rules []string) []string {
 // validate field based on rules
 func (v *validator) applyRules(
 	ctx context.Context,
-	fm *fieldMetadata,
+	fs *fieldScope,
 ) error {
-	for _, rule := range fm.rules {
+	for _, rule := range fs.rules {
 		if rule.isTransform {
-			err := v.applyTransformation(ctx, fm, rule)
+			err := v.applyTransformation(ctx, fs, rule)
 			if err != nil {
 				return err
 			}
@@ -419,7 +396,7 @@ func (v *validator) applyRules(
 			continue
 		}
 
-		err := v.applyValidation(ctx, fm, rule)
+		err := v.applyValidation(ctx, fs, rule)
 		if err != nil {
 			return err
 		}
@@ -431,26 +408,26 @@ func (v *validator) applyRules(
 // apply transformation rule
 func (v *validator) applyTransformation(
 	ctx context.Context,
-	fm *fieldMetadata,
+	fs *fieldScope,
 	rule *tagMetadata,
 ) error {
-	fm.tag = rule.rule
+	fs.tag = rule.rule
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
-	if !hasValue(fm.kind, fm.value) && !rule.runOnNil {
+	if !hasValue(fs.kind, fs.value) && !rule.runOnNil {
 		return nil
 	}
 
-	newValue, err := rule.transFn(ctx, &fm.fieldScope)
+	newValue, err := rule.transFn(ctx, fs)
 	if err != nil {
 		return err
 	}
 
 	// check if transformation returns a new value and assign it
-	if newValue != fm.value.Interface() {
-		fm.value = reflect.ValueOf(newValue)
-		fm.kind = fm.value.Kind()
-		fm.typ = fm.value.Type()
+	if newValue != fs.value.Interface() {
+		fs.value = reflect.ValueOf(newValue)
+		fs.kind = fs.value.Kind()
+		fs.typ = fs.value.Type()
 	}
 
 	return nil
@@ -459,24 +436,24 @@ func (v *validator) applyTransformation(
 // apply validation rule
 func (v *validator) applyValidation(
 	ctx context.Context,
-	fm *fieldMetadata,
+	fs *fieldScope,
 	rule *tagMetadata,
 ) error {
-	fm.tag = rule.rule
-	fm.param = rule.param
+	fs.tag = rule.rule
+	fs.param = rule.param
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
-	if !hasValue(fm.kind, fm.value) && !rule.runOnNil {
+	if !hasValue(fs.kind, fs.value) && !rule.runOnNil {
 		return nil
 	}
 
-	valid, err := rule.valFn(ctx, &fm.fieldScope)
+	valid, err := rule.valFn(ctx, fs)
 	if err != nil {
 		return err
 	}
 
 	if !valid {
-		return v.formatErr(&fm.fieldScope)
+		return v.formatErr(fs)
 	}
 
 	return nil
@@ -524,9 +501,7 @@ func (v *validator) processMapValue(
 			kind = val.Kind()
 		}
 
-		newFs := v.fieldScopePool.Get().(*fieldScope)
-		defer v.fieldScopePool.Put(newFs)
-		*newFs = fieldScope{
+		newFs := &fieldScope{
 			strct:       fs.strct,
 			field:       key.String(),
 			structField: key.String(),
@@ -565,9 +540,7 @@ func (v *validator) processSliceValue(
 			kind = val.Kind()
 		}
 
-		newFs := v.fieldScopePool.Get().(*fieldScope)
-		defer v.fieldScopePool.Put(newFs)
-		*newFs = fieldScope{
+		newFs := &fieldScope{
 			strct:       fs.strct,
 			field:       fmt.Sprintf("[%d]", i),
 			structField: fmt.Sprintf("[%d]", i),
@@ -606,9 +579,7 @@ func (v *validator) parseTag(tag string) []string {
 func (v *validator) formatErr(fs *fieldScope) error {
 	// set display field
 	// done here so expensive regex matching is only done when an error must be returned
-	fe := v.fieldErrorPool.Get().(*fieldError)
-	defer v.fieldErrorPool.Put(fe)
-	*fe = fieldError{
+	fe := &fieldError{
 		field:        fs.field,
 		structField:  fs.structField,
 		displayField: v.getDisplayName(fs.structField),
