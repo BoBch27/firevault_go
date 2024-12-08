@@ -124,7 +124,7 @@ func BenchmarkValidateNestedStructWithSlice(b *testing.B) {
 		Name    string   `firevault:"name,required,min=3,max=50"`
 		Email   string   `firevault:"email,required,email"`
 		Age     int      `firevault:"age,min=18,max=120"`
-		Address Address  `firevault:"address"`
+		Address Address  `firevault:"address,required"`
 		Tags    []string `firevault:"tags,min=1,max=5"`
 	}
 

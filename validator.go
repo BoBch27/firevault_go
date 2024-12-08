@@ -295,6 +295,10 @@ func (v *validator) processField(
 	fs *fieldScope,
 	opts validationOpts,
 ) (string, interface{}, error) {
+	if fs == nil {
+		return "", nil, nil
+	}
+
 	// skip empty field with omitempty tags
 	shouldOmit := fs.omitEmpty == "always" || fs.omitEmpty == string(opts.method)
 	if shouldOmit && !slices.Contains(opts.emptyFieldsAllowed, fs.path) && !hasValue(fs.kind, val) {
