@@ -398,13 +398,13 @@ func (v *validator) applyRules(
 ) error {
 	for _, rule := range fs.rules {
 		// skip method specific required tags which do not match current method
-		if method == validate && (rule == "required_"+string(create) || rule == "required_"+string(update)) {
+		if method == validate && (strings.HasSuffix(rule, string("_"+create)) || strings.HasSuffix(rule, string("_"+update))) {
 			continue
 		}
-		if method == create && (rule == "required_"+string(validate) || rule == "required_"+string(update)) {
+		if method == create && (strings.HasSuffix(rule, string("_"+validate)) || strings.HasSuffix(rule, string("_"+update))) {
 			continue
 		}
-		if method == update && (rule == "required_"+string(create) || rule == "required_"+string(validate)) {
+		if method == update && (strings.HasSuffix(rule, string("_"+create)) || strings.HasSuffix(rule, string("_"+validate))) {
 			continue
 		}
 
