@@ -87,9 +87,9 @@ func (o Options) MergeFields(fields ...string) Options {
 }
 
 // Allows the updating of the original struct's values during
-// transformations. Default is "false".
+// transformations.
 //
-// Note: Setting this to "true" makes the struct validation
+// Note: Using this option makes the struct validation
 // thread-unsafe. Use with caution.
 func (o Options) ModifyOriginal() Options {
 	o.modifyOriginal = true
