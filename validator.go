@@ -266,8 +266,9 @@ func (v *validator) extractStructCache(
 
 		// check if field should be skipped based on provided tags
 		fs.omitEmpty = v.shouldSkipField(rules, opts.method)
+		fs.dive = slices.Contains(rules, "dive")
 
-		// remove omitempty tags from rules, so no validation is attempted
+		// remove name, dive and omitempty tags from rules, so no validation is attempted
 		rules = v.cleanRules(rules)
 		fs.rules = v.extractTagCache(rules)
 
@@ -367,13 +368,14 @@ func (v *validator) shouldSkipField(rules []string, method methodType) string {
 	return ""
 }
 
-// remove omitempty tags from rules
+// remove name, dive and omitempty tags from rules
 func (v *validator) cleanRules(rules []string) []string {
 	cleanedRules := make([]string, 0, len(rules))
 
 	for index, rule := range rules {
 		if index != 0 && rule != "omitempty" && rule != string("omitempty_"+create) &&
-			rule != string("omitempty_"+update) && rule != string("omitempty_"+validate) {
+			rule != string("omitempty_"+update) && rule != string("omitempty_"+validate) &&
+			rule != "dive" {
 			cleanedRules = append(cleanedRules, rule)
 		}
 	}
@@ -474,9 +476,17 @@ func (v *validator) processFinalValue(
 
 		return v.validateFields(ctx, reflectedStruct{fs.typ, fs.value}, fs.path, fs.structPath, opts)
 	case reflect.Map:
-		return v.processMapValue(ctx, fs, opts)
+		if fs.dive {
+			return v.processMapValue(ctx, fs, opts)
+		}
+
+		return fs.value.Interface(), nil
 	case reflect.Array, reflect.Slice:
-		return v.processSliceValue(ctx, fs, opts)
+		if fs.dive {
+			return v.processSliceValue(ctx, fs, opts)
+		}
+
+		return fs.value.Interface(), nil
 	default:
 		return fs.value.Interface(), nil
 	}

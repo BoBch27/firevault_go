@@ -19,8 +19,9 @@ type fieldScope struct {
 	param       string
 
 	// cache data
-	omitEmpty string
+	dive      bool
 	pointer   bool
+	omitEmpty string
 	rules     []*tagMetadata
 }
 
