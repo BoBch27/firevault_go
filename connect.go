@@ -54,6 +54,12 @@ func (c *Connection) Close() error {
 // If a validation rule with the same name
 // already exists, the previous one will be replaced.
 //
+// If the validation name includes a method-specific
+// suffix ("_create", "_update", or "_validate"),
+// the rule will be applied exclusively during
+// calls to the corresponding method type and
+// ignored for others.
+//
 // Registering such functions is not thread-safe;
 // it is intended that all rules be registered,
 // prior to any validation.
@@ -78,6 +84,13 @@ func (c *Connection) RegisterValidation(
 //
 // If a transformation rule with the same name
 // already exists, the previous one will be replaced.
+//
+// If the transformation name includes a
+// method-specific suffix
+// ("_create", "_update", or "_validate"),
+// the rule will be applied exclusively during
+// calls to the corresponding method type and
+// ignored for others.
 //
 // Registering such functions is not thread-safe;
 // it is intended that all rules be registered,

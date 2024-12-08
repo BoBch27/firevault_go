@@ -97,7 +97,7 @@ Firevault validates fields' values based on the defined rules. There are built-i
 *Custom validations:*
 - To define a custom validation, use `Connection`'s `RegisterValidation` method.
 	- *Expects*:
-		- name: A `string` defining the validation name.
+		- name: A `string` defining the validation name. If the name includes a method-specific suffix ("_create", "_update", or "_validate"), the rule will be applied exclusively during calls to the corresponding method type and ignored for others.
 		- func: A function of type `ValidationFn`. The passed in function accepts two parameters.
 			- *Expects*:
 				- ctx: A context.
@@ -145,7 +145,7 @@ Firevault also supports rules that transform the field's value. There are built-
 *Custom transformations:*
 - To define a transformation, use `Connection`'s `RegisterTransformation` method.
 	- *Expects*:
-		- name: A `string` defining the transformation name.
+		- name: A `string` defining the transformation name. If the name includes a method-specific suffix ("_create", "_update", or "_validate"), the rule will be applied exclusively during calls to the corresponding method type and ignored for others.
 		- func: A function of type `TransformationFn`. The passed in function accepts two parameters.
 			- *Expects*: 
 				- ctx: A context.
