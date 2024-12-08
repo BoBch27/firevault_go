@@ -415,21 +415,8 @@ func (v *validator) applyRules(
 	fs *fieldScope,
 ) error {
 	for _, rule := range fs.rules {
-		fe := v.fieldErrorPool.Get().(*fieldError)
-		defer v.fieldErrorPool.Put(fe)
-		*fe = fieldError{
-			field:        fs.field,
-			structField:  fs.structField,
-			displayField: fs.displayField,
-			path:         fs.path,
-			structPath:   fs.structPath,
-			value:        fs.value.Interface(),
-			kind:         fs.kind,
-			typ:          fs.typ,
-		}
-
 		if strings.HasPrefix(rule, "transform=") {
-			err := v.applyTransformation(ctx, fs, fe, rule)
+			err := v.applyTransformation(ctx, fs, rule)
 			if err != nil {
 				return err
 			}
@@ -437,7 +424,7 @@ func (v *validator) applyRules(
 			continue
 		}
 
-		err := v.applyValidation(ctx, fs, fe, rule)
+		err := v.applyValidation(ctx, fs, rule)
 		if err != nil {
 			return err
 		}
@@ -450,18 +437,16 @@ func (v *validator) applyRules(
 func (v *validator) applyTransformation(
 	ctx context.Context,
 	fs *fieldScope,
-	fe *fieldError,
 	rule string,
 ) error {
 	// extract rule
 	transName := strings.TrimPrefix(rule, "transform=")
 
-	fe.rule = transName
 	fs.rule = transName
 
 	transformation, ok := v.transformations[transName]
 	if !ok {
-		return v.formatErr(fe)
+		return v.generateFieldErr(fs)
 	}
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
@@ -488,20 +473,17 @@ func (v *validator) applyTransformation(
 func (v *validator) applyValidation(
 	ctx context.Context,
 	fs *fieldScope,
-	fe *fieldError,
 	rule string,
 ) error {
 	// extract rule and optional parameter
 	rule, param, _ := strings.Cut(rule, "=")
 
 	fs.rule = rule
-	fe.rule = rule
 	fs.param = param
-	fe.param = rule
 
 	validation, ok := v.validations[rule]
 	if !ok {
-		return v.formatErr(fe)
+		return v.generateFieldErr(fs)
 	}
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
@@ -515,7 +497,7 @@ func (v *validator) applyValidation(
 	}
 
 	if !valid {
-		return v.formatErr(fe)
+		return v.generateFieldErr(fs)
 	}
 
 	return nil
@@ -638,8 +620,23 @@ func (v *validator) processSliceValue(
 	return newSlice, nil
 }
 
-// format fieldError
-func (v *validator) formatErr(fe *fieldError) error {
+// generate fieldError
+func (v *validator) generateFieldErr(fs *fieldScope) error {
+	fe := v.fieldErrorPool.Get().(*fieldError)
+	defer v.fieldErrorPool.Put(fe)
+	*fe = fieldError{
+		field:        fs.field,
+		structField:  fs.structField,
+		displayField: fs.displayField,
+		path:         fs.path,
+		structPath:   fs.structPath,
+		value:        fs.value.Interface(),
+		kind:         fs.kind,
+		typ:          fs.typ,
+		rule:         fs.rule,
+		param:        fs.param,
+	}
+
 	for _, formatter := range v.errFormatters {
 		err := formatter(fe)
 		if err != nil {
