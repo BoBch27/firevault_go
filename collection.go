@@ -229,6 +229,15 @@ func (c *CollectionRef[T]) Count(ctx context.Context, query Query) (int64, error
 	return countInt, nil
 }
 
+// used to determine how to parse options
+type methodType string
+
+const (
+	validate methodType = "validate"
+	create   methodType = "create"
+	update   methodType = "update"
+)
+
 // extract passed options
 func (c *CollectionRef[T]) parseOptions(
 	method methodType,
