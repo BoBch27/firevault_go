@@ -209,7 +209,7 @@ func (v *validator) validateStructFields(
 	if !ok {
 		// extract struct data and store in cache
 		var err error
-		sd, err = v.extractStructData(rs, path, structPath, opts)
+		sd, err = v.extractStructData(rs, path, structPath)
 		if err != nil {
 			return nil, err
 		}
@@ -237,7 +237,6 @@ func (v *validator) extractStructData(
 	rs reflectedStruct,
 	path string,
 	structPath string,
-	opts validationOpts,
 ) (*structData, error) {
 	sd := &structData{
 		name:   rs.typ.Name(),
@@ -285,7 +284,7 @@ func (v *validator) extractStructData(
 		}
 
 		// check if field should be skipped based on provided rules
-		fs.omitEmpty = v.shouldSkipField(rules, opts.method)
+		fs.omitEmpty = v.shouldSkipField(rules)
 
 		// check whether to dive into slice/map field
 		fs.dive = slices.Contains(rules, "dive")
@@ -422,13 +421,21 @@ func (v *validator) validateFieldType(fieldKind reflect.Kind, fieldPath string) 
 }
 
 // return when (or if) to skip empty field, based on rules
-func (v *validator) shouldSkipField(rules []string, method methodType) string {
+func (v *validator) shouldSkipField(rules []string) string {
 	if slices.Contains(rules, "omitempty") {
 		return "always"
 	}
 
-	if slices.Contains(rules, string("omitempty_"+method)) {
-		return string(method)
+	if slices.Contains(rules, string("omitempty_"+create)) {
+		return string(create)
+	}
+
+	if slices.Contains(rules, string("omitempty_"+update)) {
+		return string(update)
+	}
+
+	if slices.Contains(rules, string("omitempty_"+validate)) {
+		return string(validate)
 	}
 
 	return ""
