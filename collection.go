@@ -236,6 +236,8 @@ const (
 	validate methodType = "validate"
 	create   methodType = "create"
 	update   methodType = "update"
+	all      methodType = "all"
+	none     methodType = "none"
 )
 
 // extract passed options
