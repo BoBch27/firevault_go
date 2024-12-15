@@ -471,11 +471,14 @@ func (v *validator) applyTransformation(
 		return err
 	}
 
-	// check if transformation returns a new value and assign it
+	// check if transformation returns a new value and assign it, only if it isn't a different kind
 	if newValue != fs.value.Interface() {
-		fs.value = reflect.ValueOf(newValue)
-		fs.kind = fs.value.Kind()
-		fs.typ = fs.value.Type()
+		newReflectedVal := reflect.ValueOf(newValue)
+		if newReflectedVal.Kind() != fs.kind || newReflectedVal.Type() != fs.typ {
+			return errors.New("firevault: transformed value cannot be of a different kind/type")
+		}
+
+		fs.value = newReflectedVal
 	}
 
 	return nil
