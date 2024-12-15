@@ -207,11 +207,11 @@ The `CollectionRef` instance has **7** built-in methods to support interaction w
 	- *Expects*:
 		- ctx: A context.
 		- data: A `pointer` of a `struct` with populated fields which will be added to Firestore after validation.
-		- options *(optional)*: An instance of `Options` with the following properties having an
-		effect. 
-			- SkipValidation: A `bool` which when `true`, means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged). Default is `false`.
-			- ID: A `string` which will add a document to Firestore with the specified ID.
-			- AllowEmptyFields: An optional `string` `slice`, which is used to specify which fields can ignore the `omitempty` and `omitempty_create` rules. This can be useful when a field must be set to its zero value only on certain method calls. If left empty, all fields will honour the two rules.
+		- options *(optional)*: An instance of `Options` with the following chainable methods having an effect. 
+			- SkipValidation: When used, it means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged).
+			- ID: When invoked with a `string` param, that value will be used as an ID when adding the document to Firestore. If not used, or called with no params, an auto generated ID will be used.
+			- AllowEmptyFields: When invoked with a variable number of `string` params, the fields that match the provided field paths will ignore the `omitempty` and `omitempty_create` rules. This can be useful when a field must be set to its zero value only on certain method calls. If not used, or called with no params, all fields will honour the two rules.
+			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
 	- *Returns*:
 		- id: A `string` with the new document's ID.
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
@@ -269,11 +269,11 @@ fmt.Println(id) // "6QVHL46WCE680ZG2Xn3X"
 		- ctx: A context.
 		- query: A `Query` instance to filter which documents to update.
 		- data: A `pointer` of a `struct` with populated fields which will be used to update the documents after validation.
-		- options *(optional)*: An instance of `Options` with the following properties having an
-		effect.
-			- SkipValidation: A `bool` which when `true`, means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged). Default is `false`.
-			- MergeFields: An optional `string` `slice`, which is used to specify which fields to be overwritten. Other fields on the document will be untouched. If left empty, all the fields given in the data argument will be overwritten. If a field is specified, but is not present in the data passed, the field will be deleted from the document (using `firestore.Delete`).
-			- AllowEmptyFields: An optional `string` `slice`, which is used to specify which fields can ignore the `omitempty` and `omitempty_update` rules. This can be useful when a field must be set to its zero value only on certain updates. If left empty, all fields will honour the two rules.
+		- options *(optional)*: An instance of `Options` with the following chainable methods having an effect. 
+			- SkipValidation: When used, it means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged).
+			- MergeFields: When invoked with a variable number of `string` params, the fields which match the provided field paths will be overwritten. Other fields on the document will be untouched. If not used, or called with no params, all the fields given in the data argument will be overwritten. If a field is specified, but is not present in the data passed, the field will be deleted from the document (using `firestore.Delete`).
+			- AllowEmptyFields: When invoked with a variable number of `string` params, the fields that match the provided field paths will ignore the `omitempty` and `omitempty_update` rules. This can be useful when a field must be set to its zero value only on certain method calls. If not used, or called with no params, all fields will honour the two rules.
+			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
 	- ***Important***: 
@@ -347,10 +347,10 @@ fmt.Println("Success") // address.Line1 field will be deleted from document, sin
 	- *Expects*:
 		- ctx: A context.
 		- data: A `pointer` of a `struct` with populated fields which will be validated.
-		- options *(optional)*: An instance of `Options` with the following properties having an
-		effect.
-			- SkipValidation: A `bool` which when `true`, means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged). Default is `false`.
-			- AllowEmptyFields: An optional `string` `slice`, which is used to specify which fields can ignore the `omitempty` and `omitempty_validate` rules. This can be useful when a field must be set to its zero value only on certain method calls. If left empty, all fields will honour the two rules.
+		- options *(optional)*: An instance of `Options` with the following chainable methods having an effect. 
+			- SkipValidation: When used, it means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged).
+			- AllowEmptyFields: When invoked with a variable number of `string` params, the fields that match the provided field paths will ignore the `omitempty` and `omitempty_validate` rules. This can be useful when a field must be set to its zero value only on certain method calls. If not used, or called with no params, all fields will honour the two rules.
+			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation.
 	- ***Important***: 
@@ -568,6 +568,14 @@ newOptions := options.SkipValidation()
 		- A new `Options` instance.
 ```go
 newOptions := options.AllowEmptyFields("age")
+```
+- `ModifyOriginal` - Returns a new `Options` instance that allows the updating of field values in the original passed in data struct after transformations. Note, this will make the operation thread-unsafe, so should be used with caution.
+	- *Expects*:
+		- path: A varying number of `string` values (using dot separation) used to select field paths.
+	- *Returns*:
+		- A new `Options` instance.
+```go
+newOptions := options.ModifyOriginal()
 ```
 - `MergeFields` - Returns a new `Options` instance that allows to specify which field paths to be overwritten. Other fields on the existing document will be untouched. If a provided field path does not refer to a value in the data passed, that field will be deleted from the document. Only used for updating method.
 	- *Expects*:
