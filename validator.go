@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -341,16 +340,16 @@ func (v *validator) getDisplayName(fieldName string) string {
 	fn := strings.ReplaceAll(fieldName, "_", " ")
 
 	// split camel and pascal case
-	fn = regexp.MustCompile(`([a-z])([A-Z])`).ReplaceAllStringFunc(fn, func(ns string) string {
+	fn = lowerUpperBoundary.ReplaceAllStringFunc(fn, func(ns string) string {
 		return string(ns[0]) + " " + string(ns[1])
 	})
 
 	// check if string contains a number
-	if regexp.MustCompile(`\d`).MatchString(fn) {
-		fn = regexp.MustCompile(`([A-Z])([0-9])`).ReplaceAllStringFunc(fn, func(ns string) string {
+	if digitInstance.MatchString(fn) {
+		fn = upperDigitBoundary.ReplaceAllStringFunc(fn, func(ns string) string {
 			return string(ns[0]) + " " + string(ns[1])
 		})
-		fn = regexp.MustCompile(`([a-z])([0-9])`).ReplaceAllStringFunc(fn, func(ns string) string {
+		fn = lowerDigitBoundary.ReplaceAllStringFunc(fn, func(ns string) string {
 			return string(ns[0]) + " " + string(ns[1])
 		})
 	}
