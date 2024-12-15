@@ -162,6 +162,7 @@ type validationOpts struct {
 	method             methodType
 	skipValidation     bool
 	emptyFieldsAllowed []string
+	modifyOriginal     bool
 }
 
 // check if passed data is a pointer and reflect it if so
@@ -294,9 +295,12 @@ func (v *validator) processField(
 			return "", nil, err
 		}
 
-		// set original struct's field value if changed
-		if fieldValue != fs.value {
-			rs.values.Field(fieldIndex).Set(fs.value)
+		// check if original struct value should be changed (can be thread-unsafe, hence option)
+		if opts.modifyOriginal {
+			// set original struct's field value if changed
+			if fieldValue != fs.value {
+				rs.values.Field(fieldIndex).Set(fs.value)
+			}
 		}
 	}
 

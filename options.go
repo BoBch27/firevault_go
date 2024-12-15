@@ -17,6 +17,12 @@ type Options struct {
 	//
 	// If left empty, those rules will be honoured for all fields.
 	allowEmptyFields []string
+	// Allows the updating of the original struct's values during
+	// transformations. Default is "false".
+	//
+	// Note: Setting this to "true" makes the struct validation
+	// thread-unsafe. Use with caution.
+	modifyOriginal bool
 	// Specify which field paths (using dot-separated strings)
 	// to be overwritten. Other fields on the existing document
 	// will be untouched.
@@ -64,6 +70,16 @@ func (o Options) SkipValidation() Options {
 // If left empty, those rules will be honoured for all fields.
 func (o Options) AllowEmptyFields(fields ...string) Options {
 	o.allowEmptyFields = append(o.allowEmptyFields, fields...)
+	return o
+}
+
+// Allows the updating of the original struct's values during
+// transformations.
+//
+// Note: Using this option makes the struct validation
+// thread-unsafe. Use with caution.
+func (o Options) ModifyOriginal() Options {
+	o.modifyOriginal = true
 	return o
 }
 
