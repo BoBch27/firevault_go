@@ -33,6 +33,7 @@ type ruleData struct {
 	param       string
 	isTransform bool
 	runOnNil    bool
+	methodOnly  methodType
 }
 
 // A Firevault FieldScope interface gives access

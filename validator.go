@@ -344,7 +344,7 @@ func (v *validator) processStructField(
 	// apply rules (both transformations and validations)
 	// unless skipped using options
 	if !opts.skipValidation {
-		err := v.applyRules(ctx, fs)
+		err := v.applyRules(ctx, fs, opts.method)
 		if err != nil {
 			return "", nil, err
 		}
@@ -459,6 +459,15 @@ func (v *validator) extractRuleData(rules []string) []*ruleData {
 		var transFn TransformationFn
 		var param string
 		var runOnNil bool
+		var methodOnly methodType
+
+		if strings.HasSuffix(rule, string("_"+create)) {
+			methodOnly = create
+		} else if strings.HasSuffix(rule, string("_"+update)) {
+			methodOnly = update
+		} else if strings.HasSuffix(rule, string("_"+validate)) {
+			methodOnly = validate
+		}
 
 		if isTransform {
 			rule = strings.TrimPrefix(rule, "transform=")
@@ -489,6 +498,7 @@ func (v *validator) extractRuleData(rules []string) []*ruleData {
 			isTransform: isTransform,
 			param:       param,
 			runOnNil:    runOnNil,
+			methodOnly:  methodOnly,
 		})
 	}
 
@@ -499,8 +509,14 @@ func (v *validator) extractRuleData(rules []string) []*ruleData {
 func (v *validator) applyRules(
 	ctx context.Context,
 	fs *fieldScope,
+	method methodType,
 ) error {
 	for _, rule := range fs.rules {
+		// skip method specific rules which don't match current method
+		if rule.methodOnly != "" && rule.methodOnly != method {
+			continue
+		}
+
 		if rule.isTransform {
 			err := v.applyTransformation(ctx, fs, rule)
 			if err != nil {
