@@ -264,13 +264,13 @@ func (v *validator) processField(
 	fs.structPath = v.getFieldPath(structPath, fs.structField)
 
 	// check if field is of supported type
-	err := v.validateFieldType(fs.value, fs.path)
+	err := v.validateFieldType(fs.kind, fs.path)
 	if err != nil {
 		return "", nil, err
 	}
 
 	// check if field should be skipped based on provided rules
-	if v.shouldSkipField(fs.value, fs.path, rules, opts) {
+	if v.shouldSkipField(fs, rules, opts) {
 		return "", nil, nil
 	}
 
@@ -360,8 +360,8 @@ func (v *validator) getDisplayName(fieldName string) string {
 }
 
 // check if field is of supported type and return error if not
-func (v *validator) validateFieldType(fieldValue reflect.Value, fieldPath string) error {
-	if !isSupported(fieldValue) {
+func (v *validator) validateFieldType(fieldKind reflect.Kind, fieldPath string) error {
+	if !isSupported(fieldKind) {
 		return errors.New("firevault: unsupported field type - " + fieldPath)
 	}
 
@@ -370,17 +370,12 @@ func (v *validator) validateFieldType(fieldValue reflect.Value, fieldPath string
 
 // skip field validation if value is zero and an omitempty rule is present
 // (unless rules are skipped using options)
-func (v *validator) shouldSkipField(
-	fieldValue reflect.Value,
-	fieldPath string,
-	rules []string,
-	opts validationOpts,
-) bool {
+func (v *validator) shouldSkipField(fs *fieldScope, rules []string, opts validationOpts) bool {
 	omitEmptyMethod := string("omitempty_" + opts.method)
 	shouldOmitEmpty := slices.Contains(rules, "omitempty") || slices.Contains(rules, omitEmptyMethod)
 
-	if shouldOmitEmpty && !slices.Contains(opts.emptyFieldsAllowed, fieldPath) {
-		return !hasValue(fieldValue)
+	if shouldOmitEmpty && !slices.Contains(opts.emptyFieldsAllowed, fs.path) {
+		return !hasValue(fs.kind, fs.value)
 	}
 
 	return false
@@ -467,7 +462,7 @@ func (v *validator) applyTransformation(
 	}
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
-	if !hasValue(fs.value) && !transformation.runOnNil {
+	if !hasValue(fs.kind, fs.value) && !transformation.runOnNil {
 		return nil
 	}
 
@@ -507,7 +502,7 @@ func (v *validator) applyValidation(
 	}
 
 	// skip processing if field is zero, unless stated otherwise during rule registration
-	if !hasValue(fs.value) && !validation.runOnNil {
+	if !hasValue(fs.kind, fs.value) && !validation.runOnNil {
 		return nil
 	}
 
