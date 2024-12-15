@@ -157,6 +157,13 @@ type reflectedStruct struct {
 	values reflect.Value
 }
 
+// options used during validation
+type validationOpts struct {
+	method             methodType
+	skipValidation     bool
+	emptyFieldsAllowed []string
+}
+
 // check if passed data is a pointer and reflect it if so
 func (v *validator) validate(
 	ctx context.Context,
