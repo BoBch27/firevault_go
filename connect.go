@@ -12,6 +12,12 @@ import (
 //
 // It is designed to be thread-safe and used
 // as a singleton instance.
+//
+// A cache is used under the hood to store
+// struct validation metadata, parsing
+// validation tags once per struct type.
+// Using multiple instances defeats the
+// purpose of caching.
 type Connection struct {
 	client    *firestore.Client
 	validator *validator
@@ -24,6 +30,12 @@ type Connection struct {
 //
 // It is designed to be thread-safe and used
 // as a singleton instance.
+//
+// A cache is used under the hood to store
+// struct validation metadata, parsing
+// validation tags once per struct type.
+// Using multiple instances defeats the
+// purpose of caching.
 func Connect(ctx context.Context, projectID string) (*Connection, error) {
 	val := newValidator()
 

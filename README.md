@@ -19,7 +19,7 @@ import "github.com/bobch27/firevault_go"
 
 Connection
 ------------
-You can connect to Firevault using the `Connect` method, providing a project ID. A Firevault `Connection` is designed to be thread-safe and used as a singleton instance.
+You can connect to Firevault using the `Connect` method, providing a project ID. A Firevault `Connection` is designed to be thread-safe and used as a singleton instance. A cache is used under the hood to store struct validation metadata, parsing validation tags once per struct type. Using multiple instances defeats the purpose of caching.
 
 ```go
 import (
