@@ -154,8 +154,8 @@ func (v *validator) registerErrorFormatter(errFormatter ErrorFormatterFn) error 
 
 // the reflected struct
 type reflectedStruct struct {
-	types  reflect.Type
-	values reflect.Value
+	typ reflect.Type
+	val reflect.Value
 }
 
 // options used during validation
@@ -177,26 +177,24 @@ func (v *validator) validate(
 	}
 
 	rs := reflectedStruct{reflect.TypeOf(data), reflect.ValueOf(data)}
-	rsValKind := rs.values.Kind()
 
-	if rsValKind != reflect.Pointer && rsValKind != reflect.Ptr {
+	if rs.val.Kind() != reflect.Pointer {
 		return nil, errors.New("firevault: data must be a pointer to a struct")
 	}
 
-	rs.values = rs.values.Elem()
-	rs.types = rs.types.Elem()
+	rs = reflectedStruct{rs.typ.Elem(), rs.val.Elem()}
 
-	if rs.values.Kind() != reflect.Struct {
+	if rs.val.Kind() != reflect.Struct {
 		return nil, errors.New("firevault: data must be a pointer to a struct")
 	}
 
-	dataMap, err := v.validateFields(ctx, rs, "", "", opts)
+	dataMap, err := v.validateStructFields(ctx, rs, "", "", opts)
 	return dataMap, err
 }
 
 // loop through struct's fields and validate
 // based on provided tags and options
-func (v *validator) validateFields(
+func (v *validator) validateStructFields(
 	ctx context.Context,
 	rs reflectedStruct,
 	path string,
@@ -204,14 +202,14 @@ func (v *validator) validateFields(
 	opts validationOpts,
 ) (map[string]interface{}, error) {
 	// map which will hold all fields to pass to firestore
-	dataMap := make(map[string]interface{}, rs.values.NumField())
+	dataMap := make(map[string]interface{}, rs.val.NumField())
 
 	// get cached struct data, if available
-	sd, ok := v.cache.get(rs.types)
+	sd, ok := v.cache.get(rs.typ)
 	if !ok {
-		// create cache
+		// extract struct data and store in cache
 		var err error
-		sd, err = v.extractStructCache(rs, path, structPath)
+		sd, err = v.extractStructData(rs, path, structPath)
 		if err != nil {
 			return nil, err
 		}
@@ -221,7 +219,7 @@ func (v *validator) validateFields(
 	for i := 0; i < len(sd.fields); i++ {
 		// process each individual field
 		// (has side effects as it updates original struct after transformation (if allowed))
-		fieldName, fieldValue, err := v.processField(ctx, rs, rs.values.Field(i), sd.fields[i], opts)
+		fieldName, fieldValue, err := v.processStructField(ctx, rs, rs.val.Field(i), sd.fields[i], opts)
 		if err != nil {
 			return nil, err
 		}
@@ -234,20 +232,20 @@ func (v *validator) validateFields(
 	return dataMap, nil
 }
 
-// iterate over struct fields and store data in cache
-func (v *validator) extractStructCache(
+// iterate over and collect struct fields data and store in cache
+func (v *validator) extractStructData(
 	rs reflectedStruct,
 	path string,
 	structPath string,
 ) (*structData, error) {
 	sd := &structData{
-		name:   rs.types.Name(),
-		fields: make([]*fieldScope, rs.types.NumField()),
+		name:   rs.typ.Name(),
+		fields: make([]*fieldScope, rs.typ.NumField()),
 	}
 
-	for i := 0; i < rs.types.NumField(); i++ {
-		fieldValue := rs.values.Field(i)
-		fieldType := rs.types.Field(i)
+	for i := 0; i < rs.typ.NumField(); i++ {
+		fieldValue := rs.val.Field(i)
+		fieldType := rs.typ.Field(i)
 
 		tag := fieldType.Tag.Get("firevault")
 
@@ -257,7 +255,7 @@ func (v *validator) extractStructCache(
 		}
 
 		fs := &fieldScope{
-			strct:        rs.values,
+			strct:        rs.val,
 			field:        fieldType.Name,
 			structField:  fieldType.Name,
 			displayField: v.getDisplayName(fieldType.Name),
@@ -309,12 +307,13 @@ func (v *validator) extractStructCache(
 		sd.fields[i] = fs
 	}
 
-	v.cache.set(rs.types, sd)
+	// store in cache
+	v.cache.set(rs.typ, sd)
 	return sd, nil
 }
 
 // process individual field validations and transformations
-func (v *validator) processField(
+func (v *validator) processStructField(
 	ctx context.Context,
 	rs reflectedStruct,
 	val reflect.Value,
@@ -353,7 +352,7 @@ func (v *validator) processField(
 		if opts.modifyOriginal {
 			// set original struct's field value if changed
 			if fieldValue != fs.value {
-				rs.values.Field(fs.idx).Set(fs.value)
+				rs.val.Field(fs.idx).Set(fs.value)
 			}
 		}
 	}
@@ -613,7 +612,7 @@ func (v *validator) processFinalValue(
 			return fs.value.Interface().(time.Time), nil
 		}
 
-		return v.validateFields(ctx, reflectedStruct{fs.typ, fs.value}, fs.path, fs.structPath, opts)
+		return v.validateStructFields(ctx, reflectedStruct{fs.typ, fs.value}, fs.path, fs.structPath, opts)
 	case reflect.Map:
 		// return map directly, without validating nested fields
 		if !fs.dive {
