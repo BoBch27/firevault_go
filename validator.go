@@ -355,16 +355,16 @@ func (v *validator) getDisplayName(fieldName string) string {
 	fn := strings.ReplaceAll(fieldName, "_", " ")
 
 	// split camel and pascal case
-	fn = lowerUpperBoundary.ReplaceAllStringFunc(fn, func(ns string) string {
+	fn = lowerUpperBoundaryRegex().ReplaceAllStringFunc(fn, func(ns string) string {
 		return string(ns[0]) + " " + string(ns[1])
 	})
 
 	// check if string contains a number
-	if digitInstance.MatchString(fn) {
-		fn = upperDigitBoundary.ReplaceAllStringFunc(fn, func(ns string) string {
+	if digitInstanceRegex().MatchString(fn) {
+		fn = upperDigitBoundaryRegex().ReplaceAllStringFunc(fn, func(ns string) string {
 			return string(ns[0]) + " " + string(ns[1])
 		})
-		fn = lowerDigitBoundary.ReplaceAllStringFunc(fn, func(ns string) string {
+		fn = lowerDigitBoundaryRegex().ReplaceAllStringFunc(fn, func(ns string) string {
 			return string(ns[0]) + " " + string(ns[1])
 		})
 	}

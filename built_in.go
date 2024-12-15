@@ -63,7 +63,7 @@ func validateRequired(_ context.Context, fs FieldScope) (bool, error) {
 
 // validates if field is a valid email address
 func validateEmail(_ context.Context, fs FieldScope) (bool, error) {
-	return emailRegex.MatchString(fs.Value().String()), nil
+	return emailRegex().MatchString(fs.Value().String()), nil
 }
 
 // validates if field's value is less than or equal to param's value
