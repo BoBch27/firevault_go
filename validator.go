@@ -645,7 +645,7 @@ func (v *validator) generateFieldErr(fs *fieldScope) error {
 		displayField: fs.displayField,
 		path:         fs.path,
 		structPath:   fs.structPath,
-		value:        fs.value.Interface(),
+		value:        fs.value,
 		kind:         fs.kind,
 		typ:          fs.typ,
 		rule:         fs.rule,

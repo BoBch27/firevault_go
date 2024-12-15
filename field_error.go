@@ -15,7 +15,7 @@ type fieldError struct {
 	displayField string
 	path         string
 	structPath   string
-	value        interface{}
+	value        reflect.Value
 	kind         reflect.Kind
 	typ          reflect.Type
 	rule         string
@@ -48,8 +48,8 @@ type FieldError interface {
 	// dot-separated path from the stuct
 	// (e.g. "Names.First").
 	StructPath() string
-	// Value returns the field's actual value.
-	Value() interface{}
+	// Value returns the field's reflect Value.
+	Value() reflect.Value
 	// Kind returns the Value's reflect Kind
 	// (eg. time.Time's kind is a struct).
 	Kind() reflect.Kind
@@ -102,8 +102,8 @@ func (fe *fieldError) StructPath() string {
 	return fe.structPath
 }
 
-// Value returns the field's actual value.
-func (fe *fieldError) Value() interface{} {
+// Value returns the field's reflect Value.
+func (fe *fieldError) Value() reflect.Value {
 	return fe.value
 }
 
