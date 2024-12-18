@@ -260,7 +260,7 @@ func (v *validator) extractStructData(
 			structField:  fieldType.Name,
 			displayField: v.getDisplayName(fieldType.Name),
 			value:        fieldValue,
-			kind:         fieldValue.Kind(),
+			kind:         fieldType.Type.Kind(),
 			typ:          fieldType.Type,
 			idx:          i,
 		}
@@ -295,12 +295,14 @@ func (v *validator) extractStructData(
 		// parse rules and generate rule data
 		fs.rules = v.extractRuleData(rules)
 
-		// get pointer value, only if it's not nil
-		if fs.kind == reflect.Pointer && !fs.value.IsNil() {
-			fs.value = fs.value.Elem()
-			fs.kind = fs.value.Kind()
-			fs.typ = fs.value.Type()
+		// get pointer value
+		if fs.kind == reflect.Pointer {
 			fs.pointer = true
+			fs.value = fs.value.Elem()
+
+			// get pointer metadata from type info, as value may be nil
+			fs.typ = fs.typ.Elem()
+			fs.kind = fs.typ.Kind()
 		}
 
 		// set cached struct field value
@@ -605,6 +607,11 @@ func (v *validator) processFinalValue(
 	fs *fieldScope,
 	opts validationOpts,
 ) (interface{}, error) {
+	// return nil if Value is invalid (nil pointer)
+	if !fs.value.IsValid() {
+		return nil, nil
+	}
+
 	switch fs.kind {
 	case reflect.Struct:
 		// handle time.Time
