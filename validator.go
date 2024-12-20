@@ -334,7 +334,6 @@ func (v *validator) processStructField(
 	}
 
 	// update cache to use new value
-	fieldValue := val
 	fs.value = val
 
 	// handle pointers
@@ -345,6 +344,9 @@ func (v *validator) processStructField(
 	// apply rules (both transformations and validations)
 	// unless skipped using options
 	if !opts.skipValidation {
+		// store field value in order to compare if it has changed after transformations
+		fieldValue := fs.value
+
 		err := v.applyRules(ctx, fs, opts.method)
 		if err != nil {
 			return "", nil, err
