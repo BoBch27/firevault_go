@@ -205,7 +205,7 @@ func (v *validator) validateStructFields(
 	if !ok {
 		// extract struct data and store in cache
 		var err error
-		sd, err = v.extractStructData(fs.typ, fs.value, fs.path, fs.structPath)
+		sd, err = v.extractStructData(fs.typ, fs.value, fs.path, fs.structPath, fs.dynamic)
 		if err != nil {
 			return nil, err
 		}
@@ -242,6 +242,7 @@ func (v *validator) extractStructData(
 	val reflect.Value,
 	path string,
 	structPath string,
+	dynamic bool,
 ) (*structData, error) {
 	sd := &structData{
 		name:   typ.Name(),
@@ -267,6 +268,7 @@ func (v *validator) extractStructData(
 			value:        fieldValue,
 			kind:         fieldType.Type.Kind(),
 			typ:          fieldType.Type,
+			dynamic:      dynamic,
 		}
 
 		// parse tag into separate rules
@@ -670,6 +672,7 @@ func (v *validator) processMapValue(
 			value:       val,
 			kind:        kind,
 			typ:         val.Type(),
+			dynamic:     true,
 		}
 
 		processedValue, err := v.processFinalValue(ctx, newFs, opts)
@@ -709,6 +712,7 @@ func (v *validator) processSliceValue(
 			value:       val,
 			kind:        kind,
 			typ:         val.Type(),
+			dynamic:     true,
 		}
 
 		processedValue, err := v.processFinalValue(ctx, newFs, opts)

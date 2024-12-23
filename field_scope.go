@@ -20,6 +20,7 @@ type fieldScope struct {
 	// used for caching
 	pointer   bool
 	dive      bool
+	dynamic   bool
 	omitEmpty methodType
 	rules     []*ruleData
 }
