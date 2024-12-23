@@ -213,9 +213,17 @@ func (v *validator) validateStructFields(
 
 	// iterate over struct fields
 	for i := 0; i < len(sd.fields); i++ {
+		cachedFs := sd.fields[i]
+		newVal := fs.value.Field(i)
+
+		// always use latest value
+		if cachedFs.value != newVal {
+			cachedFs.value = newVal
+		}
+
 		// process each individual field
 		// (has side effects as it updates original struct after transformation (if allowed))
-		fieldName, fieldValue, err := v.processStructField(ctx, fs.value.Field(i), sd.fields[i], opts)
+		fieldName, fieldValue, err := v.processStructField(ctx, cachedFs, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -314,7 +322,6 @@ func (v *validator) extractStructData(
 // process individual field validations and transformations
 func (v *validator) processStructField(
 	ctx context.Context,
-	val reflect.Value,
 	fs *fieldScope,
 	opts validationOpts,
 ) (string, interface{}, error) {
@@ -325,12 +332,9 @@ func (v *validator) processStructField(
 
 	// skip empty field with omitempty tags
 	shouldOmit := fs.omitEmpty == all || fs.omitEmpty == opts.method
-	if shouldOmit && !slices.Contains(opts.emptyFieldsAllowed, fs.path) && !hasValue(fs.kind, val) {
+	if shouldOmit && !slices.Contains(opts.emptyFieldsAllowed, fs.path) && !hasValue(fs.kind, fs.value) {
 		return "", nil, nil
 	}
-
-	// update cache to use new value
-	fs.value = val
 
 	// handle pointers
 	if fs.pointer {
