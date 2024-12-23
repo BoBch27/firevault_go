@@ -17,11 +17,11 @@ type fieldScope struct {
 	typ          reflect.Type
 	rule         string
 	param        string
-	dive         bool
-	idx          int
-	pointer      bool
-	omitEmpty    methodType
-	rules        []*ruleData
+	// used for caching
+	pointer   bool
+	dive      bool
+	omitEmpty methodType
+	rules     []*ruleData
 }
 
 // ruleData contains the information
@@ -39,7 +39,8 @@ type ruleData struct {
 // A Firevault FieldScope interface gives access
 // to all information needed to validate a field.
 type FieldScope interface {
-	// Struct returns the reflected top level struct.
+	// Struct returns the reflected parent struct
+	// of the current field, if any.
 	Struct() reflect.Value
 	// Field returns the field's name, with the tag
 	// name taking precedence over the field's
@@ -79,7 +80,8 @@ type FieldScope interface {
 	Param() string
 }
 
-// Struct returns the reflected top level struct.
+// Struct returns the reflected parent struct
+// of the current field, if any.
 func (fs *fieldScope) Struct() reflect.Value {
 	return fs.strct
 }

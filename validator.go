@@ -267,7 +267,6 @@ func (v *validator) extractStructData(
 			value:        fieldValue,
 			kind:         fieldType.Type.Kind(),
 			typ:          fieldType.Type,
-			idx:          i,
 		}
 
 		// parse tag into separate rules
