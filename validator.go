@@ -221,6 +221,12 @@ func (v *validator) validateStructFields(
 			cachedFs.value = newVal
 		}
 
+		// use dynamic paths (of map/slice element as its key/index may have changed)
+		if cachedFs.dynamic {
+			cachedFs.path = v.getFieldPath(fs.path, cachedFs.field)
+			cachedFs.structField = v.getFieldPath(fs.structPath, cachedFs.structField)
+		}
+
 		// process each individual field
 		// (has side effects as it updates original struct after transformation (if allowed))
 		fieldName, fieldValue, err := v.processStructField(ctx, cachedFs, opts)
