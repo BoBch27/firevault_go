@@ -40,6 +40,10 @@ type Options struct {
 	//
 	// Only used for creation method.
 	id string
+	// Allows for the overriding of the method type.
+	//
+	// Only used for validate method.
+	method methodType
 }
 
 // Create a new Options instance.
@@ -102,5 +106,25 @@ func (o Options) MergeFields(fields ...string) Options {
 // Only used for creation method.
 func (o Options) CustomID(id string) Options {
 	o.id = id
+	return o
+}
+
+// Allows the application of the same rules
+// as if performing a Create operation
+// (e.g. "required_create").
+//
+// Only used for validation method.
+func (o Options) AsCreate() Options {
+	o.method = create
+	return o
+}
+
+// Allows the application of the same rules
+// as if performing an Update operation
+// (e.g. "required_update").
+//
+// Only used for validation method.
+func (o Options) AsUpdate() Options {
+	o.method = update
 	return o
 }

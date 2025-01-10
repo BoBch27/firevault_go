@@ -245,30 +245,21 @@ func (c *CollectionRef[T]) parseOptions(
 	method methodType,
 	opts ...Options,
 ) (validationOpts, string, firestore.SetOption) {
-	options := validationOpts{
-		method:             method,
-		skipValidation:     false,
-		emptyFieldsAllowed: make([]string, 0),
-		modifyOriginal:     false,
-	}
-
 	if len(opts) == 0 {
-		return options, "", firestore.MergeAll
+		return validationOpts{method: method}, "", firestore.MergeAll
 	}
 
 	// parse options
 	passedOpts := opts[0]
-
-	if passedOpts.skipValidation {
-		options.skipValidation = true
+	options := validationOpts{
+		method:             method,
+		skipValidation:     passedOpts.skipValidation,
+		emptyFieldsAllowed: passedOpts.allowEmptyFields,
+		modifyOriginal:     passedOpts.modifyOriginal,
 	}
 
-	if len(passedOpts.allowEmptyFields) > 0 {
-		options.emptyFieldsAllowed = passedOpts.allowEmptyFields
-	}
-
-	if passedOpts.modifyOriginal {
-		options.modifyOriginal = true
+	if method == validate && passedOpts.method != "" {
+		options.method = passedOpts.method
 	}
 
 	if method == update && len(passedOpts.mergeFields) > 0 {
