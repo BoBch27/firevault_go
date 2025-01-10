@@ -351,6 +351,8 @@ fmt.Println("Success") // address.Line1 field will be deleted from document, sin
 			- SkipValidation: When used, it means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged).
 			- AllowEmptyFields: When invoked with a variable number of `string` params, the fields that match the provided field paths will ignore the `omitempty` and `omitempty_validate` rules. This can be useful when a field must be set to its zero value only on certain method calls. If not used, or called with no params, all fields will honour the two rules.
 			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
+			- AsCreate: When used, it allows the application of the same rules as if performing a `Create` operation (e.g. `required_create`), i.e. it performs the same validation as the one before document creation.
+			- AsUpdate: When used, it allows the application of the same rules as if performing an `Update` operation (e.g. `required_update`), i.e. it performs the same validation as the one before document updating.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation.
 	- ***Important***: 
@@ -360,6 +362,22 @@ user := User{
 	Email: "HELLO@BOBBYDONEV.COM",
 }
 err := collection.Validate(ctx, &user)
+if err != nil {
+	fmt.Println(err)
+} 
+fmt.Println(user) // {hello@bobbydonev.com}
+```
+```go
+user := User{
+	Email: "HELLO@BOBBYDONEV.COM",
+}
+// this will run the same validation as the one in collection.Update()
+// so rules like "required_update" will be applied instead of "required_validate"
+err := collection.Validate(
+	ctx, 
+	&user,
+	NewOptions().AsUpdate()
+)
 if err != nil {
 	fmt.Println(err)
 } 
@@ -570,8 +588,6 @@ newOptions := options.SkipValidation()
 newOptions := options.AllowEmptyFields("age")
 ```
 - `ModifyOriginal` - Returns a new `Options` instance that allows the updating of field values in the original passed in data struct after transformations. Note, this will make the operation thread-unsafe, so should be used with caution.
-	- *Expects*:
-		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
@@ -592,6 +608,18 @@ newOptions := options.MergeFields("address.Line1")
 		- A new `Options` instance.
 ```go
 newOptions := options.CustomID("custom-id")
+```
+- `AsCreate` - Returns a new `Options` instance that allows the application of the same rules as if performing a `Create` operation (e.g. `required_create`). Only used for validation method.
+	- *Returns*:
+		- A new `Options` instance.
+```go
+newOptions := options.AsCreate()
+```
+- `AsUpdate` - Returns a new `Options` instance that allows the application of the same rules as if performing an `Update` operation (e.g. `required_update`). Only used for validation method.
+	- *Returns*:
+		- A new `Options` instance.
+```go
+newOptions := options.AsUpdate()
 ```
 
 Custom Errors
