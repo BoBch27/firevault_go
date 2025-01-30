@@ -31,19 +31,6 @@ type order struct {
 	direction Direction
 }
 
-// Direction is the sort direction for result ordering.
-type Direction int32
-
-// Asc sorts results from smallest to largest.
-const Asc Direction = Direction(1)
-
-// Desc sorts results from largest to smallest.
-const Desc Direction = Direction(2)
-
-// DocumentID is the special field name representing the
-// ID of a document in queries.
-const DocumentID = "__name__"
-
 // Create a new Query instance.
 //
 // A Firevault Query helps to filter and order
