@@ -118,7 +118,7 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, mergeFields := c.parseOptions(update, opts...)
+	valOptions, _, updateFields := c.parseOptions(update, opts...)
 
 	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
 	if err != nil {
@@ -126,7 +126,7 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 	}
 
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
-		_, err := bw.Set(c.ref.Doc(docID), dataMap, mergeFields)
+		_, err := bw.Set(c.ref.Doc(docID), dataMap, updateFields)
 		return err
 	})
 }
@@ -257,11 +257,11 @@ func (c *CollectionRef[T]) parseOptions(
 		options.method = passedOpts.method
 	}
 
-	if method == update && len(passedOpts.mergeFields) > 0 {
+	if method == update && len(passedOpts.updateFields) > 0 {
 		fps := make([]firestore.FieldPath, 0)
 
-		for i := 0; i < len(passedOpts.mergeFields); i++ {
-			fp := firestore.FieldPath(strings.Split(passedOpts.mergeFields[i], "."))
+		for i := 0; i < len(passedOpts.updateFields); i++ {
+			fp := firestore.FieldPath(strings.Split(passedOpts.updateFields[i], "."))
 			fps = append(fps, fp)
 		}
 

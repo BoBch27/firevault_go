@@ -13,7 +13,7 @@ type Options struct {
 	modifyOriginal   bool
 	method           methodType
 	id               string
-	mergeFields      []string
+	updateFields     []string
 }
 
 // Create a new Options instance.
@@ -104,7 +104,7 @@ func (o Options) CustomID(id string) Options {
 // not refer to a value in the data passed.
 //
 // Only used for updating method.
-func (o Options) MergeFields(fields ...string) Options {
-	o.mergeFields = append(o.mergeFields, fields...)
+func (o Options) UpdateFields(fields ...string) Options {
+	o.updateFields = append(o.updateFields, fields...)
 	return o
 }
