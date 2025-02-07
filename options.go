@@ -14,6 +14,7 @@ type Options struct {
 	method           methodType
 	id               string
 	updateFields     []string
+	deleteFields     []string
 }
 
 // Create a new Options instance.
@@ -101,10 +102,33 @@ func (o Options) CustomID(id string) Options {
 // document will be untouched.
 //
 // It is an error if a provided field path does
-// not refer to a value in the data passed.
+// not refer to a value in the data passed,
+// unless it's also specified in DeleteFields.
 //
 // Only used for updating method.
 func (o Options) UpdateFields(fields ...string) Options {
 	o.updateFields = append(o.updateFields, fields...)
+	return o
+}
+
+// Specify which field paths
+// (using dot-separated strings) to be
+// deleted, regardless of whether the provided
+// paths refer to values in the data passed.
+// Other fields on the existing document will
+// be untouched.
+//
+// If this option has been used in conjunction
+// with UpdateFields, any field paths passed in
+// here must also be present in UpdateFields,
+// otherwise they'll be ignored.
+//
+// DeleteFields circumvents the limitation that
+// the Delete constant can only be used on fields
+// of type interface{} (as it's a sentinel value).
+//
+// Only used for updating method.
+func (o Options) DeleteFields(fields ...string) Options {
+	o.deleteFields = append(o.deleteFields, fields...)
 	return o
 }

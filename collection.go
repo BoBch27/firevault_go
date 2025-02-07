@@ -125,6 +125,11 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 		return err
 	}
 
+	// delete all fields specified in deleteFields
+	if len(opts) > 0 {
+		c.deleteFields(dataMap, opts[0].deleteFields)
+	}
+
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
 		_, err := bw.Set(c.ref.Doc(docID), dataMap, updateFields)
 		return err
@@ -271,46 +276,26 @@ func (c *CollectionRef[T]) parseOptions(
 	return options, passedOpts.id, firestore.MergeAll
 }
 
-// delete any fields which are not present in map and are specified in mergeFields opt
-func (c *CollectionRef[T]) deleteEmptyMergeFields(
+// delete any fields specified in deleteFields opt
+func (c *CollectionRef[T]) deleteFields(
 	dataMap map[string]interface{},
-	mergeFields []string,
+	deleteFields []string,
 ) {
-	for _, path := range mergeFields {
+	for _, path := range deleteFields {
 		fields := strings.Split(path, ".")
 		current := dataMap
-		exists := true
 
-		// check if the complete path exists
-		for _, field := range fields {
-			if m, ok := current[field].(map[string]interface{}); ok {
-				current = m
-			} else if current[field] != nil && field == fields[len(fields)-1] {
-				// skip if last field exists (with any value)
-				continue
-			} else {
-				exists = false
-				break
-			}
-		}
-
-		// skip if complete path already exists
-		if exists {
-			continue
-		}
-
-		// reset current to start creating the path
-		current = dataMap
-
-		// create the nested structure
+		// create nested map if necessary
 		for i := 0; i < len(fields)-1; i++ {
-			if _, exists := current[fields[i]]; !exists {
+			_, ok := current[fields[i]].(map[string]interface{})
+			if !ok {
 				current[fields[i]] = make(map[string]interface{})
 			}
+
 			current = current[fields[i]].(map[string]interface{})
 		}
 
-		// set the last field to 'delete'
+		// set last field to 'firestore.Delete'
 		if len(fields) > 0 {
 			current[fields[len(fields)-1]] = firestore.Delete
 		}
