@@ -125,11 +125,6 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 		return err
 	}
 
-	if len(opts) > 0 {
-		// delete all mergeFields which are empty (i.e. not present in dataMap)
-		c.deleteEmptyMergeFields(dataMap, opts[0].mergeFields)
-	}
-
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
 		_, err := bw.Set(c.ref.Doc(docID), dataMap, mergeFields)
 		return err
