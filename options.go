@@ -13,6 +13,7 @@ type Options struct {
 	modifyOriginal   bool
 	method           methodType
 	id               string
+	disableMerge     bool
 	mergeFields      []string
 }
 
@@ -95,6 +96,20 @@ func (o Options) CustomID(id string) Options {
 	return o
 }
 
+// Disable the merging of fields, meaning the
+// entire document will be replaced - no
+// existing fields will be preserved.
+//
+// This option overrides any previous calls to
+// MergeFields.
+//
+// Only used for updating method.
+func (o Options) DisableMerge() Options {
+	o.disableMerge = true
+	o.mergeFields = []string{}
+	return o
+}
+
 // Specify which field paths
 // (using dot-separated strings) to be
 // overwritten. Other fields on the existing
@@ -103,8 +118,12 @@ func (o Options) CustomID(id string) Options {
 // It is an error if a provided field path does
 // not refer to a value in the data passed.
 //
+// This option overrides any previous calls to
+// DisableFields.
+//
 // Only used for updating method.
 func (o Options) MergeFields(fields ...string) Options {
 	o.mergeFields = append(o.mergeFields, fields...)
+	o.disableMerge = false
 	return o
 }

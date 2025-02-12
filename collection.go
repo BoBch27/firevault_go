@@ -108,6 +108,10 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 // Update all Firestore documents which match
 // provided Query (after data validation).
 //
+// By default, passed in data fields will be
+// merged, preserving the existing document fields.
+// Use Options to change this behaviour.
+//
 // If Query contains an ID clause and no documents
 // are matched, a new document will be created
 // for each provided ID.
@@ -255,6 +259,10 @@ func (c *CollectionRef[T]) parseOptions(
 
 	if method == validate && passedOpts.method != "" {
 		options.method = passedOpts.method
+	}
+
+	if method == update && passedOpts.disableMerge {
+		return options, passedOpts.id, nil
 	}
 
 	if method == update && len(passedOpts.mergeFields) > 0 {
