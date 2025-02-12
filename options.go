@@ -100,9 +100,8 @@ func (o Options) CustomID(id string) Options {
 // overwritten. Other fields on the existing
 // document will be untouched.
 //
-// If a provided field path does not refer
-// to a value in the data passed, that field
-// will be deleted from the document.
+// It is an error if a provided field path does
+// not refer to a value in the data passed.
 //
 // Only used for updating method.
 func (o Options) MergeFields(fields ...string) Options {
