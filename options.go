@@ -11,9 +11,9 @@ type Options struct {
 	skipValidation   bool
 	allowEmptyFields []string
 	modifyOriginal   bool
-	mergeFields      []string
-	id               string
 	method           methodType
+	id               string
+	mergeFields      []string
 }
 
 // Create a new Options instance.
@@ -62,30 +62,6 @@ func (o Options) ModifyOriginal() Options {
 	return o
 }
 
-// Specify which field paths
-// (using dot-separated strings) to be
-// overwritten. Other fields on the existing
-// document will be untouched.
-//
-// If a provided field path does not refer
-// to a value in the data passed, that field
-// will be deleted from the document.
-//
-// Only used for updating method.
-func (o Options) MergeFields(fields ...string) Options {
-	o.mergeFields = append(o.mergeFields, fields...)
-	return o
-}
-
-// Specify custom doc ID. If left empty,
-// Firestore will automatically create one.
-//
-// Only used for creation method.
-func (o Options) CustomID(id string) Options {
-	o.id = id
-	return o
-}
-
 // Allows the application of the same rules
 // as if performing a Create operation
 // (e.g. "required_create"), i.e. perform
@@ -107,5 +83,29 @@ func (o Options) AsCreate() Options {
 // Only used for validation method.
 func (o Options) AsUpdate() Options {
 	o.method = update
+	return o
+}
+
+// Specify custom doc ID. If left empty,
+// Firestore will automatically create one.
+//
+// Only used for creation method.
+func (o Options) CustomID(id string) Options {
+	o.id = id
+	return o
+}
+
+// Specify which field paths
+// (using dot-separated strings) to be
+// overwritten. Other fields on the existing
+// document will be untouched.
+//
+// If a provided field path does not refer
+// to a value in the data passed, that field
+// will be deleted from the document.
+//
+// Only used for updating method.
+func (o Options) MergeFields(fields ...string) Options {
+	o.mergeFields = append(o.mergeFields, fields...)
 	return o
 }
