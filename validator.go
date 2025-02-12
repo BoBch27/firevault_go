@@ -156,6 +156,7 @@ func (v *validator) registerErrorFormatter(errFormatter ErrorFormatterFn) error 
 type validationOpts struct {
 	method             methodType
 	skipValidation     bool
+	skipValFields      []string
 	emptyFieldsAllowed []string
 	modifyOriginal     bool
 }
@@ -350,7 +351,7 @@ func (v *validator) processStructField(
 
 	// apply rules (both transformations and validations)
 	// unless skipped using options
-	if !opts.skipValidation {
+	if !opts.skipValidation || (len(opts.skipValFields) > 0 && !slices.Contains(opts.skipValFields, fs.path)) {
 		// store field value in order to compare if it has changed after transformations
 		fieldValue := fs.value
 

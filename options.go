@@ -9,6 +9,7 @@ package firevault
 // - it does not modify the old.
 type Options struct {
 	skipValidation   bool
+	skipValFields    []string
 	allowEmptyFields []string
 	modifyOriginal   bool
 	method           methodType
@@ -33,8 +34,26 @@ func NewOptions() Options {
 // Skip all validations - the "name" rule,
 // "omitempty" rules and "ignore" rule will
 // still be honoured.
-func (o Options) SkipValidation() Options {
+//
+// If no field paths are provided, validation
+// will be skipped for all fields.
+// Otherwise, validation will only be skipped
+// for the specified field paths
+// (using dot-separated strings).
+//
+// Calling this method without specifying
+// fields will override any previous calls that
+// specified particular fields, ensuring
+// validation is skipped for all fields.
+func (o Options) SkipValidation(fields ...string) Options {
 	o.skipValidation = true
+
+	if len(fields) > 0 {
+		o.skipValFields = append(o.skipValFields, fields...)
+	} else {
+		o.skipValFields = []string{}
+	}
+
 	return o
 }
 

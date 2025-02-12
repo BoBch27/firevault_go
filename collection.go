@@ -253,6 +253,7 @@ func (c *CollectionRef[T]) parseOptions(
 	options := validationOpts{
 		method:             method,
 		skipValidation:     passedOpts.skipValidation,
+		skipValFields:      passedOpts.skipValFields,
 		emptyFieldsAllowed: passedOpts.allowEmptyFields,
 		modifyOriginal:     passedOpts.modifyOriginal,
 	}
