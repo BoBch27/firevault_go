@@ -88,7 +88,7 @@ func (o Options) ModifyOriginal() Options {
 // the same validation as the one before
 // document creation.
 //
-// Only used for validation method.
+// Only applies to the Validate method.
 func (o Options) AsCreate() Options {
 	o.method = create
 	return o
@@ -100,7 +100,7 @@ func (o Options) AsCreate() Options {
 // the same validation as the one before
 // document updating.
 //
-// Only used for validation method.
+// Only applies to the Validate method.
 func (o Options) AsUpdate() Options {
 	o.method = update
 	return o
@@ -109,7 +109,7 @@ func (o Options) AsUpdate() Options {
 // Specify custom doc ID. If left empty,
 // Firestore will automatically create one.
 //
-// Only used for creation method.
+// Only applies to the Create method.
 func (o Options) CustomID(id string) Options {
 	o.id = id
 	return o
@@ -119,10 +119,16 @@ func (o Options) CustomID(id string) Options {
 // entire document will be replaced - no
 // existing fields will be preserved.
 //
+// The deletion of fields is based on the
+// provided struct, not the Firestore document
+// itself. If the struct has changed since the
+// document was created, some fields may not be
+// deleted.
+//
 // This option overrides any previous calls to
 // MergeFields.
 //
-// Only used for updating method.
+// Only applies to the Update method.
 func (o Options) DisableMerge() Options {
 	o.disableMerge = true
 	o.mergeFields = []string{}
@@ -134,13 +140,13 @@ func (o Options) DisableMerge() Options {
 // overwritten. Other fields on the existing
 // document will be untouched.
 //
-// It is an error if a provided field path does
-// not refer to a value in the data passed.
+// If a provided field path does not refer to
+// a value in the data passed, it'll be ignored.
 //
 // This option overrides any previous calls to
 // DisableFields.
 //
-// Only used for updating method.
+// Only applies to the Update method.
 func (o Options) MergeFields(fields ...string) Options {
 	o.mergeFields = append(o.mergeFields, fields...)
 	o.disableMerge = false

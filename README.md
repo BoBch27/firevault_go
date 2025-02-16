@@ -272,8 +272,8 @@ fmt.Println(id) // "6QVHL46WCE680ZG2Xn3X"
 			- SkipValidation: When used, it means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged). If no field paths are provided, validation will be skipped for all fields. Otherwise, validation will only be skipped for the specified field paths.
 			- AllowEmptyFields: When invoked with a variable number of `string` params, the fields that match the provided field paths will ignore the `omitempty` and `omitempty_update` rules. This can be useful when a field must be set to its zero value only on certain method calls. If not used, or called with no params, all fields will honour the two rules.
 			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
-			- DisableMerge: When used, the merging of fields will be disabled, meaning the entire document will be replaced - no existing fields will be preserved.
-			- MergeFields: When invoked with a variable number of `string` params, the fields which match the provided field paths will be overwritten. Other fields on the document will be untouched. If not used, or called with no params, all the fields given in the data argument will be overwritten. It is an error if a provided field path does not refer to a value in the data passed.
+			- DisableMerge: When used, the merging of fields will be disabled, meaning the entire document will be replaced - no existing fields will be preserved. The deletion of fields is based on the provided struct, not the Firestore document itself. If the struct has changed since the document was created, some fields may not be deleted.
+			- MergeFields: When invoked with a variable number of `string` params, the fields which match the provided field paths will be overwritten. Other fields on the document will be untouched. If not used, or called with no params, all the fields given in the data argument will be overwritten. If a provided field path does not refer to a value in the data passed, it'll be ignored.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
 	- ***Important***: 
@@ -579,19 +579,19 @@ newOptions := options.AllowEmptyFields("age")
 ```go
 newOptions := options.ModifyOriginal()
 ```
-- `AsCreate` - Returns a new `Options` instance that allows the application of the same rules as if performing a `Create` operation (e.g. `required_create`). Only used for validation method.
+- `AsCreate` - Returns a new `Options` instance that allows the application of the same rules as if performing a `Create` operation (e.g. `required_create`). Only applies to the Validate method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.AsCreate()
 ```
-- `AsUpdate` - Returns a new `Options` instance that allows the application of the same rules as if performing an `Update` operation (e.g. `required_update`). Only used for validation method.
+- `AsUpdate` - Returns a new `Options` instance that allows the application of the same rules as if performing an `Update` operation (e.g. `required_update`). Only applies to the Validate method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.AsUpdate()
 ```
-- `CustomID` - Returns a new `Options` instance that allows to specify a custom document ID to be used when creating a Firestore document. Only used for creation method.
+- `CustomID` - Returns a new `Options` instance that allows to specify a custom document ID to be used when creating a Firestore document. Only applies to the Create method.
 	- *Expects*:
 		- id: A `string` specifying the custom ID.
 	- *Returns*:
@@ -599,13 +599,13 @@ newOptions := options.AsUpdate()
 ```go
 newOptions := options.CustomID("custom-id")
 ```
-- `DisableMerge` - Returns a new `Options` instance that allows to disable the merging of fields, meaning the entire document will be replaced (i.e. no existing fields will be preserved). Only used for updating method.
+- `DisableMerge` - Returns a new `Options` instance that allows to disable the merging of fields, meaning the entire document will be replaced (i.e. no existing fields will be preserved). The deletion of fields depends on the passed in data struct type - if the struct has changed since the document creation, some fields may not be deleted. Only applies to the Update method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.DisableMerge()
 ```
-- `MergeFields` - Returns a new `Options` instance that allows to specify which field paths to be overwritten. Other fields on the existing document will be untouched. It is an error if a provided field path does not refer to a value in the data passed. Only used for updating method.
+- `MergeFields` - Returns a new `Options` instance that allows to specify which field paths to be overwritten. Other fields on the existing document will be untouched. If a provided field path does not refer to a value in the data passed, it'll be ignored. Only applies to the Update method.
 	- *Expects*:
 		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:
