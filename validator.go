@@ -159,6 +159,7 @@ type validationOpts struct {
 	skipValFields      []string
 	emptyFieldsAllowed []string
 	modifyOriginal     bool
+	deleteEmpty        bool
 }
 
 // check if passed data is a struct pointer and reflect it if so
@@ -341,6 +342,11 @@ func (v *validator) processStructField(
 	// skip empty field with omitempty tags
 	shouldOmit := fs.omitEmpty == all || fs.omitEmpty == opts.method
 	if shouldOmit && !slices.Contains(opts.emptyFieldsAllowed, fs.path) && !hasValue(fs.kind, fs.value) {
+		// true if merging has been disabled (during an update)
+		if opts.deleteEmpty {
+			return fs.field, Delete, nil
+		}
+
 		return "", nil, nil
 	}
 
