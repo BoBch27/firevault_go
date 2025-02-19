@@ -1,5 +1,11 @@
 package firevault
 
+import (
+	"time"
+
+	"cloud.google.com/go/firestore"
+)
+
 // A Firevault Options instance allows for
 // the overriding of default options for
 // validation, creation and updating methods.
@@ -16,6 +22,7 @@ type Options struct {
 	id               string
 	disableMerge     bool
 	mergeFields      []string
+	precondition     firestore.Precondition
 }
 
 // Create a new Options instance.
@@ -150,5 +157,21 @@ func (o Options) DisableMerge() Options {
 func (o Options) MergeFields(fields ...string) Options {
 	o.mergeFields = append(o.mergeFields, fields...)
 	o.disableMerge = false
+	return o
+}
+
+// Set a precondition that the document must
+// exist and have the specified last update
+// timestamp before applying an update.
+//
+// The operation will only proceed if the
+// document's last update time matches the
+// given timestamp exactly.
+//
+// Timestamp must be microsecond aligned.
+//
+// Only applies to the Update method.
+func (o Options) RequireLastUpdateTime(t time.Time) Options {
+	o.precondition = firestore.LastUpdateTime(t)
 	return o
 }

@@ -67,7 +67,7 @@ func (c *CollectionRef[T]) Validate(ctx context.Context, data *T, opts ...Option
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, _, _ := c.parseOptions(validate, opts...)
+	valOptions, _, _, _, _ := c.parseOptions(validate, opts...)
 
 	_, err := c.connection.validator.validate(ctx, data, valOptions)
 	return err
@@ -83,7 +83,7 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 		return "", errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, id, _, _ := c.parseOptions(create, opts...)
+	valOptions, id, _, _, _ := c.parseOptions(create, opts...)
 
 	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
 	if err != nil {
@@ -127,7 +127,7 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, merge, mergeFields := c.parseOptions(update, opts...)
+	valOptions, _, precond, merge, mergeFields := c.parseOptions(update, opts...)
 
 	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
 	if err != nil {
@@ -137,6 +137,11 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 	updates := c.parseUpdates(dataMap, merge, mergeFields)
 
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
+		if precond != nil {
+			_, err := bw.Update(c.ref.Doc(docID), updates, precond)
+			return err
+		}
+
 		_, err := bw.Update(c.ref.Doc(docID), updates)
 		return err
 	})
@@ -254,9 +259,9 @@ const (
 func (c *CollectionRef[T]) parseOptions(
 	method methodType,
 	opts ...Options,
-) (validationOpts, string, bool, []string) {
+) (validationOpts, string, firestore.Precondition, bool, []string) {
 	if len(opts) == 0 {
-		return validationOpts{method: method}, "", true, nil
+		return validationOpts{method: method}, "", nil, true, nil
 	}
 
 	// parse options
@@ -275,14 +280,14 @@ func (c *CollectionRef[T]) parseOptions(
 
 	if method == update && passedOpts.disableMerge {
 		options.deleteEmpty = true
-		return options, passedOpts.id, false, nil
+		return options, passedOpts.id, passedOpts.precondition, false, nil
 	}
 
 	if method == update && len(passedOpts.mergeFields) > 0 {
-		return options, passedOpts.id, true, passedOpts.mergeFields
+		return options, passedOpts.id, passedOpts.precondition, true, passedOpts.mergeFields
 	}
 
-	return options, passedOpts.id, true, nil
+	return options, passedOpts.id, passedOpts.precondition, true, nil
 }
 
 // build a new firestore query
