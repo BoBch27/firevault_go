@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/firestore/apiv1/firestorepb"
@@ -27,8 +28,23 @@ type CollectionRef[T interface{}] struct {
 // A Firevault Document holds the ID and data related to
 // fetched document.
 type Document[T interface{}] struct {
-	ID   string
-	Data T
+	ID       string
+	Data     T
+	Metadata metadata
+}
+
+// read-only document metadata
+type metadata struct {
+	// Read-only. The time at which the document was created.
+	// Increases monotonically when a document is deleted then
+	// recreated.
+	CreateTime time.Time
+	// Read-only. The time at which the document was last
+	// changed. This value is initially set to CreateTime then
+	// increases monotonically with each change to the document.
+	UpdateTime time.Time
+	// Read-only. The time at which the document was read.
+	ReadTime time.Time
 }
 
 // Create a new CollectionRef instance.
@@ -466,7 +482,18 @@ func (c *CollectionRef[T]) fetchDocsByID(ctx context.Context, ids []string) ([]D
 				return nil, err
 			}
 
-			docs = append(docs, Document[T]{docSnap.Ref.ID, doc})
+			docs = append(
+				docs,
+				Document[T]{
+					docSnap.Ref.ID,
+					doc,
+					metadata{
+						docSnap.CreateTime,
+						docSnap.UpdateTime,
+						docSnap.ReadTime,
+					},
+				},
+			)
 		}
 	}
 
@@ -496,7 +523,18 @@ func (c *CollectionRef[T]) fetchDocsByQuery(ctx context.Context, query Query) ([
 			return nil, err
 		}
 
-		docs = append(docs, Document[T]{docSnap.Ref.ID, doc})
+		docs = append(
+			docs,
+			Document[T]{
+				docSnap.Ref.ID,
+				doc,
+				metadata{
+					docSnap.CreateTime,
+					docSnap.UpdateTime,
+					docSnap.ReadTime,
+				},
+			},
+		)
 	}
 
 	return docs, nil

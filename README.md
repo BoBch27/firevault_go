@@ -404,9 +404,13 @@ fmt.Println("Success")
 		- ctx: A context.
 		- query: A `Query` to filter and order documents.
 	- *Returns*: 
-		- docs: A `slice` containing the results of type `Document[T]` (where `T` is the type used when initiating the collection instance). `Document[T]` has two properties.
+		- docs: A `slice` containing the results of type `Document[T]` (where `T` is the type used when initiating the collection instance). `Document[T]` has three properties.
 			- ID: A `string` which holds the document's ID.
 			- Data: The document's data of type `T`.
+			- Metadata: The document's read-only metadata:
+				- CreateTime: The time at which the document was created.
+				- UpdateTime: The time at which the document was last changed.
+				- ReadTime: The time at which the document was read.
 		- error: An `error` in case something goes wrong during interaction with Firestore.
 ```go
 users, err := collection.Find(
@@ -426,9 +430,13 @@ fmt.Println(users[0].ID) // 6QVHL46WCE680ZG2Xn3X
 		- ctx: A context.
 		- query: A `Query` to filter and order documents.
 	- *Returns*:
-		- doc: Returns the document with type `Document[T]` (where `T` is the type used when initiating the collection instance). `Document[T]` has two properties.
+		- doc: Returns the document with type `Document[T]` (where `T` is the type used when initiating the collection instance). `Document[T]` has three properties.
 			- ID: A `string` which holds the document's ID.
 			- Data: The document's data of type `T`.
+			- Metadata: The document's read-only metadata:
+				- CreateTime: The time at which the document was created.
+				- UpdateTime: The time at which the document was last changed.
+				- ReadTime: The time at which the document was read.
 		- error: An `error` in case something goes wrong during interaction with Firestore.
 ```go
 user, err := collection.FindOne(
