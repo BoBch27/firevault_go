@@ -202,7 +202,7 @@ collection := firevault.Collection[User](connection, "users")
 ### Methods
 The `CollectionRef` instance has **7** built-in methods to support interaction with Firestore.
 
-- `Create` - A method which validates passed in data and adds it as a document to Firestore. 
+- `Create` - A method which validates passed in data and adds it as a document to Firestore. By default, Firestore generates a unique document ID. Use Options to change this behaviour.
 	- *Expects*:
 		- ctx: A context.
 		- data: A `pointer` of a `struct` with populated fields which will be added to Firestore after validation.
@@ -263,7 +263,7 @@ if err != nil {
 } 
 fmt.Println(id) // "6QVHL46WCE680ZG2Xn3X"
 ```
-- `Update` - A method which validates passed in data and updates all Firestore documents which match provided `Query`. By default, passed in data fields will be merged, preserving the existing document fields. Use Options to change this behaviour. If `Query` contains an `ID` clause and no documents are matched, new ones will be created for each provided ID. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic.
+- `Update` - A method which validates passed in data and updates all Firestore documents which match provided `Query`. By default, passed in data fields will be merged, preserving the existing document fields. Use Options to change this behaviour. If no documents match the provided `Query` (and the `Query` doesn't contain an `ID` clause), the operation will do nothing and will not return an error. If the `Query` does contain an `ID` clause and no documents are found, the operation will fail with an error. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic.
 	- *Expects*:
 		- ctx: A context.
 		- query: A `Query` instance to filter which documents to update.
@@ -272,13 +272,12 @@ fmt.Println(id) // "6QVHL46WCE680ZG2Xn3X"
 			- SkipValidation: When used, it means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged). If no field paths are provided, validation will be skipped for all fields. Otherwise, validation will only be skipped for the specified field paths.
 			- AllowEmptyFields: When invoked with a variable number of `string` params, the fields that match the provided field paths will ignore the `omitempty` and `omitempty_update` rules. This can be useful when a field must be set to its zero value only on certain method calls. If not used, or called with no params, all fields will honour the two rules.
 			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
-			- DisableMerge: When used, the merging of fields will be disabled, meaning the entire document will be replaced - no existing fields will be preserved.
-			- MergeFields: When invoked with a variable number of `string` params, the fields which match the provided field paths will be overwritten. Other fields on the document will be untouched. If not used, or called with no params, all the fields given in the data argument will be overwritten. It is an error if a provided field path does not refer to a value in the data passed.
+			- DisableMerge: When used, the merging of fields will be disabled, meaning the entire document will be replaced - no existing fields will be preserved. The deletion of fields is based on the provided struct, not the Firestore document itself. If the struct has changed since the document was created, some fields may not be deleted.
+			- MergeFields: When invoked with a variable number of `string` params, the fields which match the provided field paths will be overwritten. Other fields on the document will be untouched. If not used, or called with no params, all the fields given in the data argument will be overwritten. If a provided field path does not refer to a value in the data passed, it'll be ignored.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
 	- ***Important***: 
 		- If neither `omitempty`, nor `omitempty_update` rules have been used, non-specified field values in the passed in data will be set to Go's default values, thus updating all document fields. To prevent that behaviour, please use one of the two rules. 
-		- If no documents match the provided `Query` (and the `Query` doesn't contain an `ID` clause), the operation will do nothing and will not return an error.
 ```go
 user := User{
 	Password: "123567",
@@ -369,13 +368,12 @@ if err != nil {
 } 
 fmt.Println(user) // {hello@bobbydonev.com}
 ```
-- `Delete` - A method which deletes all Firestore documents which match provided `Query`. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic. 
+- `Delete` - A method which deletes all Firestore documents which match provided `Query`. If no documents match the provided `Query`, the method does nothing and `error` is `nil`. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic. 
 	- *Expects*:
 		- ctx: A context.
 		- query: A `Query` instance to filter which documents to delete.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during interaction with Firestore.
-	- If no documents match the provided `Query`, the method does nothing and `error` is `nil`.
 ```go
 err := collection.Delete(
 	ctx, 
@@ -579,19 +577,19 @@ newOptions := options.AllowEmptyFields("age")
 ```go
 newOptions := options.ModifyOriginal()
 ```
-- `AsCreate` - Returns a new `Options` instance that allows the application of the same rules as if performing a `Create` operation (e.g. `required_create`). Only used for validation method.
+- `AsCreate` - Returns a new `Options` instance that allows the application of the same rules as if performing a `Create` operation (e.g. `required_create`). Only applies to the Validate method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.AsCreate()
 ```
-- `AsUpdate` - Returns a new `Options` instance that allows the application of the same rules as if performing an `Update` operation (e.g. `required_update`). Only used for validation method.
+- `AsUpdate` - Returns a new `Options` instance that allows the application of the same rules as if performing an `Update` operation (e.g. `required_update`). Only applies to the Validate method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.AsUpdate()
 ```
-- `CustomID` - Returns a new `Options` instance that allows to specify a custom document ID to be used when creating a Firestore document. Only used for creation method.
+- `CustomID` - Returns a new `Options` instance that allows to specify a custom document ID to be used when creating a Firestore document. Only applies to the Create method.
 	- *Expects*:
 		- id: A `string` specifying the custom ID.
 	- *Returns*:
@@ -599,13 +597,13 @@ newOptions := options.AsUpdate()
 ```go
 newOptions := options.CustomID("custom-id")
 ```
-- `DisableMerge` - Returns a new `Options` instance that allows to disable the merging of fields, meaning the entire document will be replaced (i.e. no existing fields will be preserved). Only used for updating method.
+- `DisableMerge` - Returns a new `Options` instance that allows to disable the merging of fields, meaning the entire document will be replaced (i.e. no existing fields will be preserved). The deletion of fields depends on the passed in data struct type - if the struct has changed since the document creation, some fields may not be deleted. Only applies to the Update method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.DisableMerge()
 ```
-- `MergeFields` - Returns a new `Options` instance that allows to specify which field paths to be overwritten. Other fields on the existing document will be untouched. It is an error if a provided field path does not refer to a value in the data passed. Only used for updating method.
+- `MergeFields` - Returns a new `Options` instance that allows to specify which field paths to be overwritten. Other fields on the existing document will be untouched. If a provided field path does not refer to a value in the data passed, it'll be ignored. Only applies to the Update method.
 	- *Expects*:
 		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:

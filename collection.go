@@ -75,6 +75,9 @@ func (c *CollectionRef[T]) Validate(ctx context.Context, data *T, opts ...Option
 
 // Create a Firestore document with provided data
 // (after validation).
+//
+// By default, Firestore generates a unique document
+// ID. Use Options to change this behaviour.
 func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options) (string, error) {
 	if c == nil {
 		return "", errors.New("firevault: nil CollectionRef")
@@ -111,9 +114,12 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 // merged, preserving the existing document fields.
 // Use Options to change this behaviour.
 //
-// If Query contains an ID clause and no documents
-// are matched, a new document will be created
-// for each provided ID.
+// If no documents match the provided Query
+// (and it doesn't contain an ID clause),
+// the operation will do nothing and will not
+// return an error. If the Query does contain an
+// ID clause and no documents are found,
+// the operation will fail with an error.
 //
 // The operation is not atomic.
 func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opts ...Options) error {
@@ -138,6 +144,10 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 
 // Delete all Firestore documents which match
 // provided Query.
+//
+// If no documents match the provided Query,
+// the operation does nothing and no error is
+// returned.
 //
 // The operation is not atomic.
 func (c *CollectionRef[T]) Delete(ctx context.Context, query Query) error {
