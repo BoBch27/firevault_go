@@ -3,7 +3,6 @@ package firevault
 import (
 	"context"
 	"errors"
-	"strings"
 	"sync"
 
 	"cloud.google.com/go/firestore"
@@ -68,7 +67,7 @@ func (c *CollectionRef[T]) Validate(ctx context.Context, data *T, opts ...Option
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, _ := c.parseOptions(validate, opts...)
+	valOptions, _, _, _ := c.parseOptions(validate, opts...)
 
 	_, err := c.connection.validator.validate(ctx, data, valOptions)
 	return err
@@ -81,7 +80,7 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 		return "", errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, id, _ := c.parseOptions(create, opts...)
+	valOptions, id, _, _ := c.parseOptions(create, opts...)
 
 	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
 	if err != nil {
@@ -122,17 +121,14 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, _ := c.parseOptions(update, opts...)
+	valOptions, _, merge, mergeFields := c.parseOptions(update, opts...)
 
 	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
 	if err != nil {
 		return err
 	}
 
-	updates := []firestore.Update{}
-	for k, v := range dataMap {
-		updates = append(updates, firestore.Update{Path: k, Value: v})
-	}
+	updates := c.parseUpdates(dataMap, merge, mergeFields)
 
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
 		_, err := bw.Update(c.ref.Doc(docID), updates)
@@ -248,9 +244,9 @@ const (
 func (c *CollectionRef[T]) parseOptions(
 	method methodType,
 	opts ...Options,
-) (validationOpts, string, firestore.SetOption) {
+) (validationOpts, string, bool, []string) {
 	if len(opts) == 0 {
-		return validationOpts{method: method}, "", firestore.MergeAll
+		return validationOpts{method: method}, "", true, nil
 	}
 
 	// parse options
@@ -268,21 +264,15 @@ func (c *CollectionRef[T]) parseOptions(
 	}
 
 	if method == update && passedOpts.disableMerge {
-		return options, passedOpts.id, nil
+		options.deleteEmpty = true
+		return options, passedOpts.id, false, nil
 	}
 
 	if method == update && len(passedOpts.mergeFields) > 0 {
-		fps := make([]firestore.FieldPath, 0)
-
-		for i := 0; i < len(passedOpts.mergeFields); i++ {
-			fp := firestore.FieldPath(strings.Split(passedOpts.mergeFields[i], "."))
-			fps = append(fps, fp)
-		}
-
-		return options, passedOpts.id, firestore.Merge(fps...)
+		return options, passedOpts.id, true, passedOpts.mergeFields
 	}
 
-	return options, passedOpts.id, firestore.MergeAll
+	return options, passedOpts.id, true, nil
 }
 
 // build a new firestore query
@@ -326,6 +316,56 @@ func (c *CollectionRef[T]) buildQuery(query Query) firestore.Query {
 	}
 
 	return newQuery
+}
+
+// prepares firestore updates based on merge logic
+func (c *CollectionRef[T]) parseUpdates(
+	dataMap map[string]interface{},
+	merge bool,
+	mergeFields []string,
+) []firestore.Update {
+	updates := []firestore.Update{}
+
+	// convert mergeFields to a map for O(1) lookup
+	mergeFieldsMap := make(map[string]bool, len(mergeFields))
+	if merge && len(mergeFields) > 0 {
+		for _, field := range mergeFields {
+			mergeFieldsMap[field] = true
+		}
+	}
+
+	// recursive closure to process map
+	var processMap func(data map[string]interface{}, prefix string)
+	processMap = func(data map[string]interface{}, prefix string) {
+		for k, v := range data {
+			path := k
+			if prefix != "" {
+				path = prefix + "." + k
+			}
+
+			// if path is in mergeFields, add to updates without recursive processing
+			if merge && mergeFieldsMap[path] {
+				updates = append(updates, firestore.Update{Path: path, Value: v})
+				continue
+			}
+
+			// if it's a non-empty nested map, process it recursively
+			subMap, ok := v.(map[string]interface{})
+			if ok && len(subMap) > 0 {
+				processMap(subMap, path)
+				continue
+			}
+
+			// determine whether to include field based on merge settings
+			if !merge || (merge && len(mergeFields) == 0) {
+				updates = append(updates, firestore.Update{Path: path, Value: v})
+			}
+		}
+	}
+
+	// start processing from the root
+	processMap(dataMap, "")
+	return updates
 }
 
 // perform a bulk operation
