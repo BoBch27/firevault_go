@@ -274,6 +274,7 @@ fmt.Println(id) // "6QVHL46WCE680ZG2Xn3X"
 			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
 			- DisableMerge: When used, the merging of fields will be disabled, meaning the entire document will be replaced - no existing fields will be preserved. The deletion of fields is based on the provided struct, not the Firestore document itself. If the struct has changed since the document was created, some fields may not be deleted.
 			- MergeFields: When invoked with a variable number of `string` params, the fields which match the provided field paths will be overwritten. Other fields on the document will be untouched. If not used, or called with no params, all the fields given in the data argument will be overwritten. If a provided field path does not refer to a value in the data passed, it'll be ignored.
+			- RequireLastUpdateTime: When invoked with a `time.Time` timestamp, the operation will only proceed if the document's last update time matches the given timestamp exactly. Else, the operation fails with an error.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
 	- ***Important***: 
@@ -368,16 +369,30 @@ if err != nil {
 } 
 fmt.Println(user) // {hello@bobbydonev.com}
 ```
-- `Delete` - A method which deletes all Firestore documents which match provided `Query`. If no documents match the provided `Query`, the method does nothing and `error` is `nil`. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic. 
+- `Delete` - A method which deletes all Firestore documents which match provided `Query`. If no documents match the provided `Query`, the method does nothing and `error` is `nil`, unless a precondition has been specified. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic. 
 	- *Expects*:
 		- ctx: A context.
 		- query: A `Query` instance to filter which documents to delete.
+		- options *(optional)*: An instance of `Options` with the following chainable methods having an effect.
+			- RequireExists: When used, the operation will only proceed if the document exists. Else, the operation fails with an error. This option overrides any previous calls to RequireLastUpdateTime.
+			- RequireLastUpdateTime: When invoked with a `time.Time` timestamp, the operation will only proceed if the document's last update time matches the given timestamp exactly. Else, the operation fails with an error. This option overrides any previous calls to RequireExists.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during interaction with Firestore.
 ```go
 err := collection.Delete(
 	ctx, 
 	NewQuery().ID("6QVHL46WCE680ZG2Xn3X"),
+)
+if err != nil {
+	fmt.Println(err)
+} 
+fmt.Println("Success")
+```
+```go
+err := collection.Delete(
+	ctx, 
+	NewQuery().ID("6QVHL46WCE680ZG2Xn3X"),
+	NewOptions().RequireExists(),
 )
 if err != nil {
 	fmt.Println(err)
@@ -553,7 +568,7 @@ options := firevault.NewOptions()
 ```
 
 ### Methods
-The `Options` instance has **8** built-in methods to support overriding default `CollectionRef` method options. Some options only apply to specific `CollectionRef` methods.
+The `Options` instance has **10** built-in methods to support overriding default `CollectionRef` method options. Some options only apply to specific `CollectionRef` methods.
 
 - `SkipValidation` - Returns a new `Options` instance that allows to skip the data validation during creation, updating and validation methods. The "name" rule, "omitempty" rules and "ignore" rule will still be honoured. If no field paths are provided, validation will be skipped for all fields. Otherwise, validation will only be skipped for the specified field paths.
 	- *Expects*:
@@ -610,6 +625,20 @@ newOptions := options.DisableMerge()
 		- A new `Options` instance.
 ```go
 newOptions := options.MergeFields("address.Line1")
+```
+- `RequireLastUpdateTime` - Returns a new `Options` instance that allows to add a precondition that the document must exist and have the specified last update timestamp before proceeding with the operation. Else, the operation fails with an error. Only applies to the Update and Delete methods.
+	- *Expects*:
+		- timestamp: A `time.Time` value to compare against the document's last update time. Must be microsecond aligned.
+	- *Returns*:
+		- A new `Options` instance.
+```go
+newOptions := options.RequireLastUpdateTime(time.Now())
+```
+- `RequireExists` - Returns a new `Options` instance that allows to add a precondition that the document must exist before proceeding with the operation. Else, the operation fails with an error. Only applies to the Delete method.
+	- *Returns*:
+		- A new `Options` instance.
+```go
+newOptions := options.RequireExists()
 ```
 
 Custom Errors

@@ -152,7 +152,8 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 //
 // If no documents match the provided Query,
 // the operation does nothing and no error is
-// returned.
+// returned, unless a precondition has been
+// specified.
 //
 // The operation is not atomic.
 func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Options) error {
