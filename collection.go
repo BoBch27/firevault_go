@@ -122,15 +122,20 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, mergeFields := c.parseOptions(update, opts...)
+	valOptions, _, _ := c.parseOptions(update, opts...)
 
 	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
 	if err != nil {
 		return err
 	}
 
+	updates := []firestore.Update{}
+	for k, v := range dataMap {
+		updates = append(updates, firestore.Update{Path: k, Value: v})
+	}
+
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
-		_, err := bw.Set(c.ref.Doc(docID), dataMap, mergeFields)
+		_, err := bw.Update(c.ref.Doc(docID), updates)
 		return err
 	})
 }
