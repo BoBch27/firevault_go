@@ -52,6 +52,8 @@ func NewOptions() Options {
 // fields will override any previous calls that
 // specified particular fields, ensuring
 // validation is skipped for all fields.
+//
+// Does not apply to the Delete method.
 func (o Options) SkipValidation(fields ...string) Options {
 	o.skipValidation = true
 
@@ -74,6 +76,8 @@ func (o Options) SkipValidation(fields ...string) Options {
 //
 // If left empty, those rules will be honoured
 // for all fields.
+//
+// Does not apply to the Delete method.
 func (o Options) AllowEmptyFields(fields ...string) Options {
 	o.allowEmptyFields = append(o.allowEmptyFields, fields...)
 	return o
@@ -84,6 +88,8 @@ func (o Options) AllowEmptyFields(fields ...string) Options {
 //
 // Note: Using this option makes the struct
 // validation thread-unsafe. Use with caution.
+//
+// Does not apply to the Delete method.
 func (o Options) ModifyOriginal() Options {
 	o.modifyOriginal = true
 	return o
@@ -170,8 +176,24 @@ func (o Options) MergeFields(fields ...string) Options {
 //
 // Timestamp must be microsecond aligned.
 //
-// Only applies to the Update method.
+// This option overrides any previous calls to
+// RequireExists.
+//
+// Only applies to the Update and Delete
+// methods.
 func (o Options) RequireLastUpdateTime(t time.Time) Options {
 	o.precondition = firestore.LastUpdateTime(t)
+	return o
+}
+
+// Set a precondition that the document must
+// exist before proceeding with the operation.
+//
+// This option overrides any previous calls to
+// RequireLastUpdateTime.
+//
+// Only applies to the Delete method.
+func (o Options) RequireExists() Options {
+	o.precondition = firestore.Exists
 	return o
 }

@@ -155,12 +155,19 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 // returned.
 //
 // The operation is not atomic.
-func (c *CollectionRef[T]) Delete(ctx context.Context, query Query) error {
+func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Options) error {
 	if c == nil {
 		return errors.New("firevault: nil CollectionRef")
 	}
 
+	_, _, precond, _, _ := c.parseOptions(delete, opts...)
+
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
+		if precond != nil {
+			_, err := bw.Delete(c.ref.Doc(docID), precond)
+			return err
+		}
+
 		_, err := bw.Delete(c.ref.Doc(docID))
 		return err
 	})
@@ -251,6 +258,7 @@ const (
 	validate methodType = "validate"
 	create   methodType = "create"
 	update   methodType = "update"
+	delete   methodType = "delete"
 	all      methodType = "all"
 	none     methodType = "none"
 )
