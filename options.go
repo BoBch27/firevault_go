@@ -128,9 +128,11 @@ func (o Options) CustomID(id string) Options {
 	return o
 }
 
-// Disable the merging of fields, meaning the
-// entire document will be replaced - no
-// existing fields will be preserved.
+// Ensure that the entire document is replaced
+// with the passed in data, meaning no existing
+// fields will be preserved. This works like
+// Firestore's Set operation with disabled
+// merging.
 //
 // The deletion of fields is based on the
 // provided struct, not the Firestore document
@@ -139,28 +141,30 @@ func (o Options) CustomID(id string) Options {
 // deleted.
 //
 // This option overrides any previous calls to
-// MergeFields.
+// ReplaceFields.
 //
 // Only applies to the Update method.
-func (o Options) DisableMerge() Options {
+func (o Options) ReplaceAll() Options { // previously DisableMerge
 	o.disableMerge = true
 	o.mergeFields = []string{}
 	return o
 }
 
 // Specify which field paths
-// (using dot-separated strings) to be
+// (using dot-separated strings) to be fully
 // overwritten. Other fields on the existing
-// document will be untouched.
+// document will be untouched. This works like
+// Firestore's Set operation with specified
+// fields to merge.
 //
 // If a provided field path does not refer to
 // a value in the data passed, it'll be ignored.
 //
 // This option overrides any previous calls to
-// DisableFields.
+// ReplaceAll.
 //
 // Only applies to the Update method.
-func (o Options) MergeFields(fields ...string) Options {
+func (o Options) ReplaceFields(fields ...string) Options { // previously MergeFields
 	o.mergeFields = append(o.mergeFields, fields...)
 	o.disableMerge = false
 	return o

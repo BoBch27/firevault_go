@@ -272,8 +272,8 @@ fmt.Println(id) // "6QVHL46WCE680ZG2Xn3X"
 			- SkipValidation: When used, it means all validation tags will be ingored (the `name` and `omitempty` rules will be acknowledged). If no field paths are provided, validation will be skipped for all fields. Otherwise, validation will only be skipped for the specified field paths.
 			- AllowEmptyFields: When invoked with a variable number of `string` params, the fields that match the provided field paths will ignore the `omitempty` and `omitempty_update` rules. This can be useful when a field must be set to its zero value only on certain method calls. If not used, or called with no params, all fields will honour the two rules.
 			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
-			- DisableMerge: When used, the merging of fields will be disabled, meaning the entire document will be replaced - no existing fields will be preserved. The deletion of fields is based on the provided struct, not the Firestore document itself. If the struct has changed since the document was created, some fields may not be deleted.
-			- MergeFields: When invoked with a variable number of `string` params, the fields which match the provided field paths will be overwritten. Other fields on the document will be untouched. If not used, or called with no params, all the fields given in the data argument will be overwritten. If a provided field path does not refer to a value in the data passed, it'll be ignored.
+			- ReplaceAll: When used, the merging of fields will be disabled, meaning the entire document will be replaced - no existing fields will be preserved. The deletion of fields is based on the provided struct, not the Firestore document itself. If the struct has changed since the document was created, some fields may not be deleted.
+			- ReplaceFields: When invoked with a variable number of `string` params, the fields which match the provided field paths will be fully overwritten. Other fields on the document will be untouched. If not used, or called with no params, all the fields given in the data argument will be overwritten (unless `ReplaceAll` was used). If a provided field path does not refer to a value in the data passed, it'll be ignored.
 			- RequireLastUpdateTime: When invoked with a `time.Time` timestamp, the operation will only proceed if the document's last update time matches the given timestamp exactly. Else, the operation fails with an error.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
@@ -304,7 +304,7 @@ err := collection.Update(
 	ctx, 
 	NewQuery().ID("6QVHL46WCE680ZG2Xn3X"), 
 	&user, 
-	NewOptions().MergeFields("address.Line1"),
+	NewOptions().ReplaceFields("address.Line1"),
 )
 if err != nil {
 	fmt.Println(err)
@@ -620,19 +620,19 @@ newOptions := options.AsUpdate()
 ```go
 newOptions := options.CustomID("custom-id")
 ```
-- `DisableMerge` - Returns a new `Options` instance that allows to disable the merging of fields, meaning the entire document will be replaced (i.e. no existing fields will be preserved). The deletion of fields depends on the passed in data struct type - if the struct has changed since the document creation, some fields may not be deleted. Only applies to the Update method.
+- `ReplaceAll` - Returns a new `Options` instance that allows to disable the merging of fields, meaning the entire document will be replaced (i.e. no existing fields will be preserved). The deletion of fields depends on the passed in data struct type - if the struct has changed since the document creation, some fields may not be deleted. Only applies to the Update method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
-newOptions := options.DisableMerge()
+newOptions := options.ReplaceAll()
 ```
-- `MergeFields` - Returns a new `Options` instance that allows to specify which field paths to be overwritten. Other fields on the existing document will be untouched. If a provided field path does not refer to a value in the data passed, it'll be ignored. Only applies to the Update method.
+- `ReplaceFields` - Returns a new `Options` instance that allows to specify which field paths to be fully overwritten. Other fields on the existing document will be untouched. If a provided field path does not refer to a value in the data passed, it'll be ignored. Only applies to the Update method.
 	- *Expects*:
 		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
-newOptions := options.MergeFields("address.Line1")
+newOptions := options.ReplaceFields("address.Line1")
 ```
 - `RequireLastUpdateTime` - Returns a new `Options` instance that allows to add a precondition that the document must exist and have the specified last update timestamp before proceeding with the operation. Else, the operation fails with an error. Only applies to the Update and Delete methods.
 	- *Expects*:
