@@ -55,7 +55,7 @@ func NewQuery() Query {
 //
 // Calling ID overrides a previous call to the method.
 func (q Query) ID(ids ...string) Query {
-	q.ids = ids
+	q.ids = append(q.ids, ids...)
 	return q
 }
 
@@ -104,6 +104,7 @@ func (q Query) OrderBy(path string, direction Direction) Query {
 // StartAfter.
 func (q Query) StartAt(values ...interface{}) Query {
 	q.startAt = values
+	q.startAfter = []interface{}{}
 	return q
 }
 
@@ -121,6 +122,7 @@ func (q Query) StartAt(values ...interface{}) Query {
 // StartAfter.
 func (q Query) StartAfter(values ...interface{}) Query {
 	q.startAfter = values
+	q.startAt = []interface{}{}
 	return q
 }
 
@@ -138,6 +140,7 @@ func (q Query) StartAfter(values ...interface{}) Query {
 // EndBefore.
 func (q Query) EndBefore(values ...interface{}) Query {
 	q.endBefore = values
+	q.endAt = []interface{}{}
 	return q
 }
 
@@ -155,6 +158,7 @@ func (q Query) EndBefore(values ...interface{}) Query {
 // EndBefore.
 func (q Query) EndAt(values ...interface{}) Query {
 	q.endAt = values
+	q.endBefore = []interface{}{}
 	return q
 }
 
