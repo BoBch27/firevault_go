@@ -2,6 +2,10 @@ package firevault
 
 import "cloud.google.com/go/firestore"
 
+// Transaction is an alias of Firestore's
+// Transaction.
+type Transaction = firestore.Transaction
+
 // DocumentID is the special field name representing
 // the ID of a document in queries.
 const DocumentID = firestore.DocumentID

@@ -144,3 +144,25 @@ func (c *Connection) RegisterErrorFormatter(errorFormatter ErrorFormatterFn) err
 
 	return c.validator.registerErrorFormatter(errorFormatter)
 }
+
+// Run a Firestore transaction, ensuring all
+// operations within the provided function are
+// executed atomically.
+//
+// If any operation fails, the transaction is
+// retried up to Firestore’s default limit. If all
+// retries fail, the transaction is rolled back
+// and the error is returned.
+//
+// The provided function receives a Transaction
+// instance, which should be used for all reads and
+// writes within the transaction.
+//
+// Returns an error if the transaction fails after
+// all retries.
+func (c *Connection) RunTransaction(
+	ctx context.Context,
+	fn func(context.Context, *Transaction) error,
+) error {
+	return c.client.RunTransaction(ctx, fn)
+}
