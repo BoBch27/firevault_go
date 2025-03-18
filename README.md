@@ -211,6 +211,7 @@ The `CollectionRef` instance has **7** built-in methods to support interaction w
 			- AllowEmptyFields: When invoked with a variable number of `string` params, the fields that match the provided field paths will ignore the `omitempty` and `omitempty_create` rules. This can be useful when a field must be set to its zero value only on certain method calls. If not used, or called with no params, all fields will honour the two rules.
 			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
 			- CustomID: When invoked with a `string` param, that value will be used as an ID when adding the document to Firestore. If not used, or called with no params, an auto generated ID will be used.
+			- Transaction: When called with a `Transaction` instance, it ensures the operation is run as part of a transaction.
 	- *Returns*:
 		- id: A `string` with the new document's ID.
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
@@ -275,6 +276,7 @@ fmt.Println(id) // "6QVHL46WCE680ZG2Xn3X"
 			- ReplaceAll: When used, the merging of fields will be disabled, meaning the entire document will be replaced - no existing fields will be preserved. The deletion of fields is based on the provided struct, not the Firestore document itself. If the struct has changed since the document was created, some fields may not be deleted.
 			- ReplaceFields: When invoked with a variable number of `string` params, the fields which match the provided field paths will be fully overwritten. Other fields on the document will be untouched. If not used, or called with no params, all the fields given in the data argument will be overwritten (unless `ReplaceAll` was used). If a provided field path does not refer to a value in the data passed, it'll be ignored.
 			- RequireLastUpdateTime: When invoked with a `time.Time` timestamp, the operation will only proceed if the document's last update time matches the given timestamp exactly. Else, the operation fails with an error.
+			- Transaction: When called with a `Transaction` instance, it ensures the operation is run as part of a transaction.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation or interaction with Firestore.
 	- ***Important***: 
@@ -376,6 +378,7 @@ fmt.Println(user) // {hello@bobbydonev.com}
 		- options *(optional)*: An instance of `Options` with the following chainable methods having an effect.
 			- RequireExists: When used, the operation will only proceed if the document exists. Else, the operation fails with an error. This option overrides any previous calls to RequireLastUpdateTime.
 			- RequireLastUpdateTime: When invoked with a `time.Time` timestamp, the operation will only proceed if the document's last update time matches the given timestamp exactly. Else, the operation fails with an error. This option overrides any previous calls to RequireExists.
+			- Transaction: When called with a `Transaction` instance, it ensures the operation is run as part of a transaction.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during interaction with Firestore.
 ```go
@@ -403,6 +406,8 @@ fmt.Println("Success")
 	- *Expects*:
 		- ctx: A context.
 		- query: A `Query` to filter and order documents.
+		- options *(optional)*: An instance of `Options` with the following chainable methods having an effect.
+ 			- Transaction: When called with a `Transaction` instance, it ensures the operation is run as part of a transaction.
 	- *Returns*: 
 		- docs: A `slice` containing the results of type `Document[T]` (where `T` is the type used when initiating the collection instance). `Document[T]` has three properties.
 			- ID: A `string` which holds the document's ID.
@@ -429,6 +434,8 @@ fmt.Println(users[0].ID) // 6QVHL46WCE680ZG2Xn3X
 	- *Expects*:
 		- ctx: A context.
 		- query: A `Query` to filter and order documents.
+		- options *(optional)*: An instance of `Options` with the following chainable methods having an effect.
+ 			- Transaction: When called with a `Transaction` instance, it ensures the operation is run as part of a transaction.
 	- *Returns*:
 		- doc: Returns the document with type `Document[T]` (where `T` is the type used when initiating the collection instance). `Document[T]` has three properties.
 			- ID: A `string` which holds the document's ID.
@@ -448,6 +455,17 @@ if err != nil {
 } 
 fmt.Println(user.Data) // {Bobby Donev hello@bobbydonev.com asdasdkjahdks 26 0xc0001d05a0}
 ```
+```go
+ user, err := collection.FindOne(
+ 	ctx, 
+ 	NewQuery().ID("6QVHL46WCE680ZG2Xn3X"),
+ 	NewOptions().Transaction(tx),
+ )
+ if err != nil {
+ 	fmt.Println(err)
+ }
+ fmt.Println(user.Data) // {Bobby Donev hello@bobbydonev.com asdasdkjahdks 26 0xc0001d05a0}
+ ```
 - `Count` - A method which gets the number of Firestore documents which match the provided `Query`.
 	- *Expects*:
 		- ctx: A context.
@@ -576,7 +594,7 @@ options := firevault.NewOptions()
 ```
 
 ### Methods
-The `Options` instance has **10** built-in methods to support overriding default `CollectionRef` method options. Some options only apply to specific `CollectionRef` methods.
+The `Options` instance has **11** built-in methods to support overriding default `CollectionRef` method options. Some options only apply to specific `CollectionRef` methods.
 
 - `SkipValidation` - Returns a new `Options` instance that allows to skip the data validation during `Create`, `Update` and `Validate` methods. The "name" rule, "omitempty" rules and "ignore" rule will still be honoured. If no field paths are provided, validation will be skipped for all fields. Otherwise, validation will only be skipped for the specified field paths.
 	- *Expects*:
@@ -586,7 +604,7 @@ The `Options` instance has **10** built-in methods to support overriding default
 ```go
 newOptions := options.SkipValidation("name")
 ```
-- `AllowEmptyFields` - Returns a new `Options` instance that allows to specify which field paths should ignore the "omitempty" rules. Does not apply to the `Delete` method.
+- `AllowEmptyFields` - Returns a new `Options` instance that allows to specify which field paths should ignore the "omitempty" rules. Only applies to the `Validate`, `Create` and `Update` methods.
 	- *Expects*:
 		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:
@@ -594,7 +612,7 @@ newOptions := options.SkipValidation("name")
 ```go
 newOptions := options.AllowEmptyFields("age")
 ```
-- `ModifyOriginal` - Returns a new `Options` instance that allows the updating of field values in the original passed in data struct after transformations. Note, this will make the operation thread-unsafe, so should be used with caution. Does not apply to the `Delete` method.
+- `ModifyOriginal` - Returns a new `Options` instance that allows the updating of field values in the original passed in data struct after transformations. Note, this will make the operation thread-unsafe, so should be used with caution. Only applies to the `Validate`, `Create` and `Update` methods.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
@@ -648,6 +666,66 @@ newOptions := options.RequireLastUpdateTime(time.Now())
 ```go
 newOptions := options.RequireExists()
 ```
+- `Transaction` - Returns a new `Options` instance that allows to add a transaction instance, ensuring the operation is executed as part of a transaction. Does not apply to the `Validate` method.
+ 	- *Expects*:
+ 		- tx: A `Transaction` instance to ensure operation is run within a transaction.
+ 	- *Returns*:
+ 		- A new `Options` instance.
+ ```go
+ newOptions := options.Transaction(tx)
+ ```
+
+Transactions
+------------
+Firevault supports **Firestore transactions** for atomic read-write operations, allowing you to interact with documents within a single, consistent operation. Transactions ensure that all changes are either fully committed or fully rolled back in case of an error, making your database interactions more reliable.
+ 
+To perform operations within a transaction, pass a transaction instance as an option when calling methods like `Update`, `Delete`, `Create`, etc. Firevault will automatically handle the transaction logic for you.
+
+```go
+func runSimpleTransaction(ctx context.Context, connection *Connection) error {
+	// ...
+
+	collection := Collection(connection, "users")
+	query := NewQuery().Where("age", "==", 18)
+	updates := &User{Age: 19}
+
+	// Run a new transaction
+	err := connection.RunTransaction(ctx, func(ctx context.Context, tx *Transaction) error {
+		// Create new Options instance with Transaction and make sure to pass it into each 
+		// CollectionRef method inside the transaction
+		opts := NewOptions().Transaction(tx)
+
+		// Read documents
+		docs, err := collection.Find(ctx, query, opts)
+		if err != nil {
+			fmt.Println("Failed to read documents: %v", err)
+			return err
+		}
+
+		// Create new query for updating docs
+		updatedQuery := NewQuery()
+
+		// Add all found doc IDs
+		for _, doc := range docs {
+			updatedQuery = updatedQuery.ID(doc.ID)
+		}
+
+		// Update found docs
+		return collection.Update(ctx, updatedQuery, updates, opts)
+	})
+	if err != nil {
+		// Handle any errors appropriately in this section.
+		log.Printf("An error has occurred: %s", err)
+	}
+
+	return err
+}
+```
+ 
+***Transactional Behavior:***
+- ID Query Clause: When using a transaction for `Update` or `Delete`, only the `ID` clause in the `Query` is considered. If you need to update or delete documents based on other criteria, use the `Find` method first to retrieve the document IDs, and then pass them to `Update` or `Delete`.
+- Atomicity: The operations performed within a transaction are **atomic**. If any error occurs during the transaction, all changes will be rolled back, ensuring that your Firestore data remains consistent.
+- Multiple Collections: Transactions support operations across multiple collections within the same transaction, as long as the total number of operations does not exceed Firestore's transaction limits (~500 operations per transaction).
 
 Custom Errors
 ------------

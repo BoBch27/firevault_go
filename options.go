@@ -57,7 +57,8 @@ func NewOptions() Options {
 // Multiple calls to the method, with specified
 // fields, are cumulative.
 //
-// Does not apply to the Delete method.
+// Only applies to the Validate, Create and
+// Update methods.
 func (o Options) SkipValidation(fields ...string) Options {
 	o.skipValidation = true
 
@@ -80,7 +81,8 @@ func (o Options) SkipValidation(fields ...string) Options {
 //
 // Multiple calls to the method are cumulative.
 //
-// Does not apply to the Delete method.
+// Only applies to the Validate, Create and
+// Update methods.
 func (o Options) AllowEmptyFields(fields ...string) Options {
 	o.allowEmptyFields = append(o.allowEmptyFields, fields...)
 	return o
@@ -92,7 +94,8 @@ func (o Options) AllowEmptyFields(fields ...string) Options {
 // Note: Using this option makes the struct
 // validation thread-unsafe. Use with caution.
 //
-// Does not apply to the Delete method.
+// Only applies to the Validate, Create and
+// Update methods.
 func (o Options) ModifyOriginal() Options {
 	o.modifyOriginal = true
 	return o

@@ -98,6 +98,9 @@ func (c *CollectionRef[T]) Validate(ctx context.Context, data *T, opts ...Option
 // An error is returned if a document with the same
 // ID already exists, whether auto-generated
 // (unlikely), or provided.
+//
+// To use inside a transaction, pass a transaction
+// instance via Options.
 func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options) (string, error) {
 	if c == nil {
 		return "", errors.New("firevault: nil CollectionRef")
@@ -152,7 +155,14 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 // the precondition, returning an error. Other
 // updates are still processed.
 //
-// The operation is not atomic.
+// The operation is not atomic, unless used inside a
+// transaction via Options.
+//
+// Note: When using a transaction, only the ID Query
+// clause will be considered. To update documents
+// based on other query criteria, use the Find/FindOne
+// method first, and then call Update with the resulting
+// document IDs.
 func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opts ...Options) error {
 	if c == nil {
 		return errors.New("firevault: nil CollectionRef")
@@ -220,7 +230,14 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 // the precondition, returning an error. Other
 // deletes are still processed.
 //
-// The operation is not atomic.
+// The operation is not atomic, unless used inside a
+// transaction via Options.
+//
+// Note: When using a transaction, only the ID Query
+// clause will be considered. To delete documents
+// based on other query criteria, use the Find/FindOne
+// method first, and then call Delete with the resulting
+// document IDs.
 func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Options) error {
 	if c == nil {
 		return errors.New("firevault: nil CollectionRef")
@@ -264,6 +281,9 @@ func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Opti
 
 // Find all Firestore documents which match
 // provided Query.
+//
+// To use inside a transaction, pass a transaction
+// instance via Options.
 func (c *CollectionRef[T]) Find(ctx context.Context, query Query, opts ...Options) ([]Document[T], error) {
 	if c == nil {
 		return nil, errors.New("firevault: nil CollectionRef")
@@ -284,6 +304,9 @@ func (c *CollectionRef[T]) Find(ctx context.Context, query Query, opts ...Option
 // Returns an empty Document[T] (empty ID
 // string and zero-value T Data), and no error
 // if no documents are found.
+//
+// To use inside a transaction, pass a transaction
+// instance via Options.
 func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query, opts ...Options) (Document[T], error) {
 	if c == nil {
 		return Document[T]{}, errors.New("firevault: nil CollectionRef")

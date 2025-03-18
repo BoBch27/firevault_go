@@ -158,6 +158,10 @@ func (c *Connection) RegisterErrorFormatter(errorFormatter ErrorFormatterFn) err
 // instance, which should be used for all reads and
 // writes within the transaction.
 //
+// This instance can be passed into CollectionRef
+// methods, via Options, to ensure they execute as
+// part of the transaction.
+//
 // Returns an error if the transaction fails after
 // all retries.
 func (c *Connection) RunTransaction(
