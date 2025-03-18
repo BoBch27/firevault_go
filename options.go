@@ -23,6 +23,7 @@ type Options struct {
 	disableMerge     bool
 	mergeFields      []string
 	precondition     firestore.Precondition
+	transaction      *Transaction
 }
 
 // Create a new Options instance.
@@ -203,5 +204,23 @@ func (o Options) RequireLastUpdateTime(t time.Time) Options {
 // Only applies to the Delete method.
 func (o Options) RequireExists() Options {
 	o.precondition = firestore.Exists
+	return o
+}
+
+// Execute the operation within the provided
+// transaction.
+//
+// If set, all reads and writes performed by
+// this operation will be executed as part
+// of the given transaction, ensuring
+// atomicity and automatic rollback on
+// failure.
+//
+// This option overrides any previous calls
+// to Transaction.
+//
+// Does not apply to the Validate method.
+func (o Options) Transaction(t *Transaction) Options {
+	o.transaction = t
 	return o
 }

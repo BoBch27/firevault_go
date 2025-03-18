@@ -83,7 +83,7 @@ func (c *CollectionRef[T]) Validate(ctx context.Context, data *T, opts ...Option
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, _, _, _ := c.parseOptions(validate, opts...)
+	valOptions, _, _, _, _, _ := c.parseOptions(validate, opts...)
 
 	_, err := c.connection.validator.validate(ctx, data, valOptions)
 	return err
@@ -103,7 +103,7 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 		return "", errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, id, _, _, _ := c.parseOptions(create, opts...)
+	valOptions, id, _, _, _, tx := c.parseOptions(create, opts...)
 
 	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
 	if err != nil {
@@ -117,7 +117,11 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 		docRef = c.ref.Doc(id)
 	}
 
-	_, err = docRef.Create(ctx, dataMap)
+	if tx != nil {
+		err = tx.Create(docRef, dataMap) // use transaction
+	} else {
+		_, err = docRef.Create(ctx, dataMap)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -154,7 +158,7 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, precond, merge, mergeFields := c.parseOptions(update, opts...)
+	valOptions, _, precond, merge, mergeFields, tx := c.parseOptions(update, opts...)
 
 	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
 	if err != nil {
@@ -162,6 +166,29 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 	}
 
 	updates := c.parseUpdates(dataMap, merge, mergeFields)
+
+	// perform transaction if provided opt
+	if tx != nil {
+		var mu sync.Mutex
+		var errs []error
+
+		for _, id := range query.ids {
+			var err error
+
+			if precond != nil {
+				err = tx.Update(c.ref.Doc(id), updates, precond)
+			} else {
+				err = tx.Update(c.ref.Doc(id), updates)
+			}
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, errors.New(err.Error()+" (docID: "+id+")"))
+				mu.Unlock()
+			}
+		}
+
+		return errors.Join(errs...)
+	}
 
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
 		if precond != nil {
@@ -199,7 +226,30 @@ func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Opti
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	_, _, precond, _, _ := c.parseOptions(delete, opts...)
+	_, _, precond, _, _, tx := c.parseOptions(delete, opts...)
+
+	// perform transaction if provided opt
+	if tx != nil {
+		var mu sync.Mutex
+		var errs []error
+
+		for _, id := range query.ids {
+			var err error
+
+			if precond != nil {
+				err = tx.Delete(c.ref.Doc(id), precond)
+			} else {
+				err = tx.Delete(c.ref.Doc(id))
+			}
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, errors.New(err.Error()+" (docID: "+id+")"))
+				mu.Unlock()
+			}
+		}
+
+		return errors.Join(errs...)
+	}
 
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
 		if precond != nil {
@@ -214,16 +264,18 @@ func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Opti
 
 // Find all Firestore documents which match
 // provided Query.
-func (c *CollectionRef[T]) Find(ctx context.Context, query Query) ([]Document[T], error) {
+func (c *CollectionRef[T]) Find(ctx context.Context, query Query, opts ...Options) ([]Document[T], error) {
 	if c == nil {
 		return nil, errors.New("firevault: nil CollectionRef")
 	}
 
+	_, _, _, _, _, tx := c.parseOptions(find, opts...)
+
 	if len(query.ids) > 0 {
-		return c.fetchDocsByID(ctx, query.ids)
+		return c.fetchDocsByID(ctx, query.ids, tx)
 	}
 
-	return c.fetchDocsByQuery(ctx, query)
+	return c.fetchDocsByQuery(ctx, query, tx)
 }
 
 // Find the first Firestore document which
@@ -232,13 +284,15 @@ func (c *CollectionRef[T]) Find(ctx context.Context, query Query) ([]Document[T]
 // Returns an empty Document[T] (empty ID
 // string and zero-value T Data), and no error
 // if no documents are found.
-func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query) (Document[T], error) {
+func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query, opts ...Options) (Document[T], error) {
 	if c == nil {
 		return Document[T]{}, errors.New("firevault: nil CollectionRef")
 	}
 
+	_, _, _, _, _, tx := c.parseOptions(find, opts...)
+
 	if len(query.ids) > 0 {
-		docs, err := c.fetchDocsByID(ctx, query.ids[0:1])
+		docs, err := c.fetchDocsByID(ctx, query.ids[0:1], tx)
 		if err != nil {
 			return Document[T]{}, err
 		}
@@ -250,7 +304,7 @@ func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query) (Document[T
 		return docs[0], nil
 	}
 
-	docs, err := c.fetchDocsByQuery(ctx, query.Limit(1))
+	docs, err := c.fetchDocsByQuery(ctx, query.Limit(1), tx)
 	if err != nil {
 		return Document[T]{}, err
 	}
@@ -297,6 +351,7 @@ const (
 	validate methodType = "validate"
 	create   methodType = "create"
 	update   methodType = "update"
+	find     methodType = "find"
 	delete   methodType = "delete"
 	all      methodType = "all"
 	none     methodType = "none"
@@ -306,9 +361,9 @@ const (
 func (c *CollectionRef[T]) parseOptions(
 	method methodType,
 	opts ...Options,
-) (validationOpts, string, firestore.Precondition, bool, []string) {
+) (validationOpts, string, firestore.Precondition, bool, []string, *Transaction) {
 	if len(opts) == 0 {
-		return validationOpts{method: method}, "", nil, true, nil
+		return validationOpts{method: method}, "", nil, true, nil, nil
 	}
 
 	// parse options
@@ -327,14 +382,14 @@ func (c *CollectionRef[T]) parseOptions(
 
 	if method == update && passedOpts.disableMerge {
 		options.deleteEmpty = true
-		return options, passedOpts.id, passedOpts.precondition, false, nil
+		return options, passedOpts.id, passedOpts.precondition, false, nil, passedOpts.transaction
 	}
 
 	if method == update && len(passedOpts.mergeFields) > 0 {
-		return options, passedOpts.id, passedOpts.precondition, true, passedOpts.mergeFields
+		return options, passedOpts.id, passedOpts.precondition, true, passedOpts.mergeFields, passedOpts.transaction
 	}
 
-	return options, passedOpts.id, passedOpts.precondition, true, nil
+	return options, passedOpts.id, passedOpts.precondition, true, nil, passedOpts.transaction
 }
 
 // build a new firestore query
@@ -471,7 +526,11 @@ func (c *CollectionRef[T]) bulkOperation(
 }
 
 // fetch documents based on provided ids
-func (c *CollectionRef[T]) fetchDocsByID(ctx context.Context, ids []string) ([]Document[T], error) {
+func (c *CollectionRef[T]) fetchDocsByID(
+	ctx context.Context,
+	ids []string,
+	tx *Transaction,
+) ([]Document[T], error) {
 	const batchSize = 100
 	var docRefs []*firestore.DocumentRef
 	var docs []Document[T]
@@ -487,7 +546,15 @@ func (c *CollectionRef[T]) fetchDocsByID(ctx context.Context, ids []string) ([]D
 		}
 
 		batchRefs := docRefs[i:end]
-		snapshots, err := c.connection.client.GetAll(ctx, batchRefs)
+
+		var snapshots []*firestore.DocumentSnapshot
+		var err error
+
+		if tx != nil {
+			snapshots, err = tx.GetAll(batchRefs) // use transaction
+		} else {
+			snapshots, err = c.connection.client.GetAll(ctx, batchRefs)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -523,9 +590,19 @@ func (c *CollectionRef[T]) fetchDocsByID(ctx context.Context, ids []string) ([]D
 }
 
 // fetch documents based on provided Query
-func (c *CollectionRef[T]) fetchDocsByQuery(ctx context.Context, query Query) ([]Document[T], error) {
+func (c *CollectionRef[T]) fetchDocsByQuery(
+	ctx context.Context,
+	query Query,
+	tx *Transaction,
+) ([]Document[T], error) {
 	builtQuery := c.buildQuery(query)
-	iter := builtQuery.Documents(ctx)
+
+	var iter *firestore.DocumentIterator
+	if tx != nil {
+		iter = tx.Documents(builtQuery) // use transaction
+	} else {
+		iter = builtQuery.Documents(ctx)
+	}
 
 	var docs []Document[T]
 
