@@ -106,21 +106,19 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 		return "", err
 	}
 
+	var docRef *firestore.DocumentRef
 	if id == "" {
-		docRef, _, err := c.ref.Add(ctx, dataMap)
-		if err != nil {
-			return "", err
-		}
-
-		id = docRef.ID
+		docRef = c.ref.NewDoc() // generates doc ref with random id (used in c.ref.Add)
 	} else {
-		_, err = c.ref.Doc(id).Set(ctx, dataMap)
-		if err != nil {
-			return "", err
-		}
+		docRef = c.ref.Doc(id)
 	}
 
-	return id, nil
+	_, err = docRef.Create(ctx, dataMap)
+	if err != nil {
+		return "", err
+	}
+
+	return docRef.ID, nil
 }
 
 // Update all Firestore documents which match
