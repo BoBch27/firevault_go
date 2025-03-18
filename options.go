@@ -53,6 +53,9 @@ func NewOptions() Options {
 // specified particular fields, ensuring
 // validation is skipped for all fields.
 //
+// Multiple calls to the method, with specified
+// fields, are cumulative.
+//
 // Does not apply to the Delete method.
 func (o Options) SkipValidation(fields ...string) Options {
 	o.skipValidation = true
@@ -74,8 +77,7 @@ func (o Options) SkipValidation(fields ...string) Options {
 // This can be useful when zero values are
 // needed only during a specific method call.
 //
-// If left empty, those rules will be honoured
-// for all fields.
+// Multiple calls to the method are cumulative.
 //
 // Does not apply to the Delete method.
 func (o Options) AllowEmptyFields(fields ...string) Options {
@@ -162,6 +164,8 @@ func (o Options) ReplaceAll() Options { // previously DisableMerge
 //
 // This option overrides any previous calls to
 // ReplaceAll.
+//
+// Multiple calls to the method are cumulative.
 //
 // Only applies to the Update method.
 func (o Options) ReplaceFields(fields ...string) Options { // previously MergeFields

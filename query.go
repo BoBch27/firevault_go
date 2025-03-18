@@ -47,13 +47,16 @@ func NewQuery() Query {
 //
 // ID takes precedence over and completely overrides
 // any previous or subsequent calls to other Query
-// methods, including Where.
+// methods, including Where - if IDs are specified, only
+// documents matching those IDs will be returned
+// regardless of other filter conditions.
 //
 // If you need to filter by ID as well as other criteria,
 // use the Where method with the special DocumentID field,
 // instead of calling ID.
 //
-// Calling ID overrides a previous call to the method.
+// Multiple calls to the method are cumulative
+// (OR condition).
 func (q Query) ID(ids ...string) Query {
 	q.ids = append(q.ids, ids...)
 	return q

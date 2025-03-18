@@ -202,7 +202,7 @@ collection := firevault.Collection[User](connection, "users")
 ### Methods
 The `CollectionRef` instance has **7** built-in methods to support interaction with Firestore.
 
-- `Create` - A method which validates passed in data and adds it as a document to Firestore. By default, Firestore generates a unique document ID. Use Options to change this behaviour.
+- `Create` - A method which validates passed in data and adds it as a document to Firestore.
 	- *Expects*:
 		- ctx: A context.
 		- data: A `pointer` of a `struct` with populated fields which will be added to Firestore after validation.
@@ -263,7 +263,7 @@ if err != nil {
 } 
 fmt.Println(id) // "6QVHL46WCE680ZG2Xn3X"
 ```
-- `Update` - A method which validates passed in data and updates all Firestore documents which match provided `Query`. By default, passed in data fields will be merged, preserving the existing document fields. Use Options to change this behaviour. If no documents match the provided `Query` (and the `Query` doesn't contain an `ID` clause), the operation will do nothing and will not return an error. If the `Query` does contain an `ID` clause and no documents are found, the operation will fail with an error. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic.
+- `Update` - A method which validates passed in data and updates all Firestore documents which match provided `Query`. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic.
 	- *Expects*:
 		- ctx: A context.
 		- query: A `Query` instance to filter which documents to update.
@@ -369,7 +369,7 @@ if err != nil {
 } 
 fmt.Println(user) // {hello@bobbydonev.com}
 ```
-- `Delete` - A method which deletes all Firestore documents which match provided `Query`. If no documents match the provided `Query`, the method does nothing and `error` is `nil`, unless a precondition has been specified. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic. 
+- `Delete` - A method which deletes all Firestore documents which match provided `Query`. The method uses Firestore's `BulkWriter` under the hood, meaning the operation is not atomic.
 	- *Expects*:
 		- ctx: A context.
 		- query: A `Query` instance to filter which documents to delete.
@@ -399,7 +399,7 @@ if err != nil {
 } 
 fmt.Println("Success")
 ```
-- `Find` - A method which gets the Firestore documents which match the provided query.
+- `Find` - A method which gets the Firestore documents which match the provided `Query`.
 	- *Expects*:
 		- ctx: A context.
 		- query: A `Query` to filter and order documents.
@@ -425,7 +425,7 @@ if err != nil {
 fmt.Println(users) // []Document[User]
 fmt.Println(users[0].ID) // 6QVHL46WCE680ZG2Xn3X
 ```
-- `FindOne` - A method which gets the first Firestore document which matches the provided `Query`. Returns an empty Document[T] (empty ID string and zero-value T Data), and no error if no documents are found.
+- `FindOne` - A method which gets the first Firestore document which matches the provided `Query`.
 	- *Expects*:
 		- ctx: A context.
 		- query: A `Query` to filter and order documents.
@@ -448,7 +448,7 @@ if err != nil {
 } 
 fmt.Println(user.Data) // {Bobby Donev hello@bobbydonev.com asdasdkjahdks 26 0xc0001d05a0}
 ```
-- `Count` - A method which gets the number of Firestore documents which match the provided query.
+- `Count` - A method which gets the number of Firestore documents which match the provided `Query`.
 	- *Expects*:
 		- ctx: A context.
 		- query: An instance of `Query` to filter documents.
@@ -578,7 +578,7 @@ options := firevault.NewOptions()
 ### Methods
 The `Options` instance has **10** built-in methods to support overriding default `CollectionRef` method options. Some options only apply to specific `CollectionRef` methods.
 
-- `SkipValidation` - Returns a new `Options` instance that allows to skip the data validation during creation, updating and validation methods. The "name" rule, "omitempty" rules and "ignore" rule will still be honoured. If no field paths are provided, validation will be skipped for all fields. Otherwise, validation will only be skipped for the specified field paths.
+- `SkipValidation` - Returns a new `Options` instance that allows to skip the data validation during `Create`, `Update` and `Validate` methods. The "name" rule, "omitempty" rules and "ignore" rule will still be honoured. If no field paths are provided, validation will be skipped for all fields. Otherwise, validation will only be skipped for the specified field paths.
 	- *Expects*:
 		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:
@@ -586,7 +586,7 @@ The `Options` instance has **10** built-in methods to support overriding default
 ```go
 newOptions := options.SkipValidation("name")
 ```
-- `AllowEmptyFields` - Returns a new `Options` instance that allows to specify which field paths should ignore the "omitempty" rules. This can be useful when zero values are needed only during a specific method call. If left empty, those rules will be honoured for all fields.
+- `AllowEmptyFields` - Returns a new `Options` instance that allows to specify which field paths should ignore the "omitempty" rules. Does not apply to the `Delete` method.
 	- *Expects*:
 		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:
@@ -594,25 +594,25 @@ newOptions := options.SkipValidation("name")
 ```go
 newOptions := options.AllowEmptyFields("age")
 ```
-- `ModifyOriginal` - Returns a new `Options` instance that allows the updating of field values in the original passed in data struct after transformations. Note, this will make the operation thread-unsafe, so should be used with caution.
+- `ModifyOriginal` - Returns a new `Options` instance that allows the updating of field values in the original passed in data struct after transformations. Note, this will make the operation thread-unsafe, so should be used with caution. Does not apply to the `Delete` method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.ModifyOriginal()
 ```
-- `AsCreate` - Returns a new `Options` instance that allows the application of the same rules as if performing a `Create` operation (e.g. `required_create`). Only applies to the Validate method.
+- `AsCreate` - Returns a new `Options` instance that allows the application of the same rules as if performing a `Create` operation (e.g. `required_create`). Only applies to the `Validate` method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.AsCreate()
 ```
-- `AsUpdate` - Returns a new `Options` instance that allows the application of the same rules as if performing an `Update` operation (e.g. `required_update`). Only applies to the Validate method.
+- `AsUpdate` - Returns a new `Options` instance that allows the application of the same rules as if performing an `Update` operation (e.g. `required_update`). Only applies to the `Validate` method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.AsUpdate()
 ```
-- `CustomID` - Returns a new `Options` instance that allows to specify a custom document ID to be used when creating a Firestore document. Only applies to the Create method.
+- `CustomID` - Returns a new `Options` instance that allows to specify a custom document ID to be used when creating a Firestore document. Only applies to the `Create` method.
 	- *Expects*:
 		- id: A `string` specifying the custom ID.
 	- *Returns*:
@@ -620,13 +620,13 @@ newOptions := options.AsUpdate()
 ```go
 newOptions := options.CustomID("custom-id")
 ```
-- `ReplaceAll` - Returns a new `Options` instance that allows to disable the merging of fields, meaning the entire document will be replaced (i.e. no existing fields will be preserved). The deletion of fields depends on the passed in data struct type - if the struct has changed since the document creation, some fields may not be deleted. Only applies to the Update method.
+- `ReplaceAll` - Returns a new `Options` instance that allows to disable the merging of fields, meaning the entire document will be replaced (i.e. no existing fields will be preserved). Only applies to the `Update` method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
 newOptions := options.ReplaceAll()
 ```
-- `ReplaceFields` - Returns a new `Options` instance that allows to specify which field paths to be fully overwritten. Other fields on the existing document will be untouched. If a provided field path does not refer to a value in the data passed, it'll be ignored. Only applies to the Update method.
+- `ReplaceFields` - Returns a new `Options` instance that allows to specify which field paths to be fully overwritten. Other fields on the existing document will be untouched. Only applies to the `Update` method.
 	- *Expects*:
 		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:
@@ -634,7 +634,7 @@ newOptions := options.ReplaceAll()
 ```go
 newOptions := options.ReplaceFields("address.Line1")
 ```
-- `RequireLastUpdateTime` - Returns a new `Options` instance that allows to add a precondition that the document must exist and have the specified last update timestamp before proceeding with the operation. Else, the operation fails with an error. Only applies to the Update and Delete methods.
+- `RequireLastUpdateTime` - Returns a new `Options` instance that allows to add a precondition that the document must exist and have the specified last update timestamp before proceeding with the operation. Else, the operation fails with an error. Only applies to the `Update` and `Delete` methods.
 	- *Expects*:
 		- timestamp: A `time.Time` value to compare against the document's last update time. Must be microsecond aligned.
 	- *Returns*:
@@ -642,7 +642,7 @@ newOptions := options.ReplaceFields("address.Line1")
 ```go
 newOptions := options.RequireLastUpdateTime(time.Now())
 ```
-- `RequireExists` - Returns a new `Options` instance that allows to add a precondition that the document must exist before proceeding with the operation. Else, the operation fails with an error. Only applies to the Delete method.
+- `RequireExists` - Returns a new `Options` instance that allows to add a precondition that the document must exist before proceeding with the operation. Else, the operation fails with an error. Only applies to the `Delete` method.
 	- *Returns*:
 		- A new `Options` instance.
 ```go

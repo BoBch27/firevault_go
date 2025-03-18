@@ -94,6 +94,10 @@ func (c *CollectionRef[T]) Validate(ctx context.Context, data *T, opts ...Option
 //
 // By default, Firestore generates a unique document
 // ID. Use Options to change this behaviour.
+//
+// An error is returned if a document with the same
+// ID already exists, whether auto-generated
+// (unlikely), or provided.
 func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options) (string, error) {
 	if c == nil {
 		return "", errors.New("firevault: nil CollectionRef")
@@ -124,16 +128,25 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 // Update all Firestore documents which match
 // provided Query (after data validation).
 //
-// By default, passed in data fields will be
-// merged, preserving the existing document fields.
+// By default, passed in data fields are merged,
+// preserving the existing document fields.
 // Use Options to change this behaviour.
 //
-// If no documents match the provided Query
-// (and it doesn't contain an ID clause),
-// the operation will do nothing and will not
-// return an error. If the Query does contain an
-// ID clause and no documents are found,
-// the operation will fail with an error.
+// If the Query does not contain an ID clause,
+// matching documents are first read in order
+// to retrieve their IDs before performing updates.
+// If no documents match, the operation does nothing
+// and does not return an error.
+//
+// If the Query does contain an ID clause, the operation
+// fails for any ID that does not correspond to an
+// existing document, returning an error. Updates
+// to matching documents are still applied.
+//
+// In the event a precondition is set, the operation
+// fails for any matching document that does not meet
+// the precondition, returning an error. Other
+// updates are still processed.
 //
 // The operation is not atomic.
 func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opts ...Options) error {
@@ -164,10 +177,21 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 // Delete all Firestore documents which match
 // provided Query.
 //
-// If no documents match the provided Query,
-// the operation does nothing and no error is
-// returned, unless a precondition has been
-// specified.
+// If the Query does not contain an ID clause,
+// matching documents are first read in order
+// to retrieve their IDs before deletion. If no
+// documents match, the operation does nothing
+// and does not return an error.
+//
+// If the Query does contain an ID clause, the operation
+// skips any ID that does not correspond to an
+// existing document, without returning an error.
+// Deletes to matching documents are still applied.
+//
+// In the event a precondition is set, the operation
+// fails for any matching document that does not meet
+// the precondition, returning an error. Other
+// deletes are still processed.
 //
 // The operation is not atomic.
 func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Options) error {
