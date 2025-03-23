@@ -120,7 +120,8 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 
 	// perform transaction if provided opt
 	if tx != nil {
-		err = c.transacOperation(tx, []string{id}, func(tx *firestore.Transaction, docID string) error {
+		query := Query{ids: []string{id}} // needed to run transac operation
+		err = c.transacOperation(tx, query, func(tx *firestore.Transaction, docID string) error {
 			return tx.Create(c.ref.Doc(docID), dataMap)
 		})
 		if err != nil {
@@ -141,20 +142,19 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 // Update all Firestore documents which match
 // provided Query (after data validation).
 //
-// By default, passed in data fields are merged,
-// preserving the existing document fields.
-// Use Options to change this behaviour.
+// By default, data fields are merged, preserving
+// existing document fields. Use Options to change
+// this behaviour.
 //
-// If the Query does not contain an ID clause,
-// matching documents are first read in order
-// to retrieve their IDs before performing updates.
-// If no documents match, the operation does nothing
-// and does not return an error.
+// If the Query doesn't contain an ID clause, documents
+// are read first to retrieve their IDs. If no
+// documents match, the operation does nothing and
+// returns no error.
 //
 // If the Query does contain an ID clause, the operation
-// fails for any ID that does not correspond to an
-// existing document, returning an error. Updates
-// to matching documents are still applied.
+// fails for any ID not corresponding to an existing
+// document, returning an error. Updates to matching
+// documents are applied.
 //
 // In the event a precondition is set, the operation
 // fails for any matching document that does not meet
@@ -164,11 +164,11 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 // The operation is not atomic, unless used inside a
 // transaction via Options.
 //
-// Note: When using a transaction, only the ID Query
-// clause will be considered. To update documents
-// based on other query criteria, use the Find/FindOne
-// method first, and then call Update with the resulting
-// document IDs.
+// Note: In a transaction with no ID clause, document
+// IDs are read first, which prevents any prior writes
+// or subsequent reads in the same transaction. To work
+// around this, use the Find/FindOne method before
+// calling Update.
 func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opts ...Options) error {
 	if c == nil {
 		return errors.New("firevault: nil CollectionRef")
@@ -185,7 +185,7 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 
 	// perform transaction if provided opt
 	if tx != nil {
-		return c.transacOperation(tx, query.ids, func(tx *firestore.Transaction, docID string) error {
+		return c.transacOperation(tx, query, func(tx *firestore.Transaction, docID string) error {
 			if precond != nil {
 				return tx.Update(c.ref.Doc(docID), updates, precond)
 			}
@@ -208,16 +208,15 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 // Delete all Firestore documents which match
 // provided Query.
 //
-// If the Query does not contain an ID clause,
-// matching documents are first read in order
-// to retrieve their IDs before deletion. If no
-// documents match, the operation does nothing
-// and does not return an error.
+// If the Query doesn't contain an ID clause, documents
+// are read first to retrieve their IDs. If no
+// documents match, the operation does nothing and
+// returns no error.
 //
 // If the Query does contain an ID clause, the operation
 // skips any ID that does not correspond to an
 // existing document, without returning an error.
-// Deletes to matching documents are still applied.
+// Deletes to matching documents are applied.
 //
 // In the event a precondition is set, the operation
 // fails for any matching document that does not meet
@@ -227,11 +226,11 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 // The operation is not atomic, unless used inside a
 // transaction via Options.
 //
-// Note: When using a transaction, only the ID Query
-// clause will be considered. To delete documents
-// based on other query criteria, use the Find/FindOne
-// method first, and then call Delete with the resulting
-// document IDs.
+// Note: In a transaction with no ID clause, document
+// IDs are read first, which prevents any prior writes
+// or subsequent reads in the same transaction. To work
+// around this, use the Find/FindOne method before
+// calling Delete.
 func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Options) error {
 	if c == nil {
 		return errors.New("firevault: nil CollectionRef")
@@ -241,7 +240,7 @@ func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Opti
 
 	// perform transaction if provided opt
 	if tx != nil {
-		return c.transacOperation(tx, query.ids, func(tx *firestore.Transaction, docID string) error {
+		return c.transacOperation(tx, query, func(tx *firestore.Transaction, docID string) error {
 			if precond != nil {
 				return tx.Delete(c.ref.Doc(docID), precond)
 			}
@@ -493,11 +492,24 @@ func (c *CollectionRef[T]) parseUpdates(
 // perform an operation within a started transaction
 func (c *CollectionRef[T]) transacOperation(
 	tx *firestore.Transaction,
-	docIDs []string,
+	query Query,
 	operation func(*firestore.Transaction, string) error,
 ) error {
 	if tx == nil {
 		return errors.New("firevault: no transaction provided")
+	}
+
+	docIDs := query.ids
+
+	if len(docIDs) == 0 {
+		docs, err := c.fetchDocsByQuery(context.Background(), tx, query) // bg ctx since we're using tx
+		if err != nil {
+			return err
+		}
+
+		for _, doc := range docs {
+			docIDs = append(docIDs, doc.ID)
+		}
 	}
 
 	if len(docIDs) == 0 {
