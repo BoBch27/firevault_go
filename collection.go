@@ -113,23 +113,29 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 		return "", err
 	}
 
-	var docRef *firestore.DocumentRef
 	if id == "" {
-		docRef = c.ref.NewDoc() // generates doc ref with random id (used in c.ref.Add)
-	} else {
-		docRef = c.ref.Doc(id)
+		docRef := c.ref.NewDoc() // generates doc ref with random id (used in c.ref.Add)
+		id = docRef.ID
 	}
 
+	// perform transaction if provided opt
 	if tx != nil {
-		err = tx.Create(docRef, dataMap) // use transaction
-	} else {
-		_, err = docRef.Create(ctx, dataMap)
+		err = c.transacOperation(tx, []string{id}, func(tx *firestore.Transaction, docID string) error {
+			return tx.Create(c.ref.Doc(docID), dataMap)
+		})
+		if err != nil {
+			return "", err
+		}
+
+		return id, nil
 	}
+
+	_, err = c.ref.Doc(id).Create(ctx, dataMap)
 	if err != nil {
 		return "", err
 	}
 
-	return docRef.ID, nil
+	return id, nil
 }
 
 // Update all Firestore documents which match
@@ -179,25 +185,13 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 
 	// perform transaction if provided opt
 	if tx != nil {
-		var mu sync.Mutex
-		var errs []error
-
-		for _, id := range query.ids {
-			var err error
-
+		return c.transacOperation(tx, query.ids, func(tx *firestore.Transaction, docID string) error {
 			if precond != nil {
-				err = tx.Update(c.ref.Doc(id), updates, precond)
-			} else {
-				err = tx.Update(c.ref.Doc(id), updates)
+				return tx.Update(c.ref.Doc(docID), updates, precond)
 			}
-			if err != nil {
-				mu.Lock()
-				errs = append(errs, errors.New(err.Error()+" (docID: "+id+")"))
-				mu.Unlock()
-			}
-		}
 
-		return errors.Join(errs...)
+			return tx.Update(c.ref.Doc(docID), updates)
+		})
 	}
 
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
@@ -247,25 +241,13 @@ func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Opti
 
 	// perform transaction if provided opt
 	if tx != nil {
-		var mu sync.Mutex
-		var errs []error
-
-		for _, id := range query.ids {
-			var err error
-
+		return c.transacOperation(tx, query.ids, func(tx *firestore.Transaction, docID string) error {
 			if precond != nil {
-				err = tx.Delete(c.ref.Doc(id), precond)
-			} else {
-				err = tx.Delete(c.ref.Doc(id))
+				return tx.Delete(c.ref.Doc(docID), precond)
 			}
-			if err != nil {
-				mu.Lock()
-				errs = append(errs, errors.New(err.Error()+" (docID: "+id+")"))
-				mu.Unlock()
-			}
-		}
 
-		return errors.Join(errs...)
+			return tx.Delete(c.ref.Doc(docID))
+		})
 	}
 
 	return c.bulkOperation(ctx, query, func(bw *firestore.BulkWriter, docID string) error {
@@ -506,6 +488,35 @@ func (c *CollectionRef[T]) parseUpdates(
 	// start processing from the root
 	processMap(dataMap, "")
 	return updates
+}
+
+// perform an operation within a started transaction
+func (c *CollectionRef[T]) transacOperation(
+	tx *firestore.Transaction,
+	docIDs []string,
+	operation func(*firestore.Transaction, string) error,
+) error {
+	if tx == nil {
+		return errors.New("firevault: no transaction provided")
+	}
+
+	if len(docIDs) == 0 {
+		return nil // no matching documents
+	}
+
+	var mu sync.Mutex
+	var errs []error
+
+	for _, docID := range docIDs {
+		err := operation(tx, docID)
+		if err != nil {
+			mu.Lock()
+			errs = append(errs, errors.New(err.Error()+" (docID: "+docID+")"))
+			mu.Unlock()
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 // perform a bulk operation
