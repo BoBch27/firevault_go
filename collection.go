@@ -517,13 +517,10 @@ func (c *CollectionRef[T]) bulkOperation(
 	bulkWriter := c.connection.client.BulkWriter(ctx)
 	defer bulkWriter.End()
 
-	var mu sync.Mutex
-	var errs []error
-
 	docIDs := query.ids
 
 	if len(docIDs) == 0 {
-		docs, err := c.Find(ctx, query)
+		docs, err := c.fetchDocsByQuery(ctx, query, nil)
 		if err != nil {
 			return err
 		}
@@ -532,6 +529,13 @@ func (c *CollectionRef[T]) bulkOperation(
 			docIDs = append(docIDs, doc.ID)
 		}
 	}
+
+	if len(docIDs) == 0 {
+		return nil // no matching documents
+	}
+
+	var mu sync.Mutex
+	var errs []error
 
 	for _, docID := range docIDs {
 		err := operation(bulkWriter, docID)
