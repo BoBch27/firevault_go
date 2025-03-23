@@ -626,6 +626,7 @@ func (c *CollectionRef[T]) fetchDocsByQuery(
 	} else {
 		iter = builtQuery.Documents(ctx)
 	}
+	defer iter.Stop()
 
 	var docs []Document[T]
 
