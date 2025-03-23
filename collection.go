@@ -274,10 +274,10 @@ func (c *CollectionRef[T]) Find(ctx context.Context, query Query, opts ...Option
 	_, _, _, _, _, tx := c.parseOptions(find, opts...)
 
 	if len(query.ids) > 0 {
-		return c.fetchDocsByID(ctx, query.ids, tx)
+		return c.fetchDocsByID(ctx, tx, query.ids)
 	}
 
-	return c.fetchDocsByQuery(ctx, query, tx)
+	return c.fetchDocsByQuery(ctx, tx, query)
 }
 
 // Find the first Firestore document which
@@ -297,7 +297,7 @@ func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query, opts ...Opt
 	_, _, _, _, _, tx := c.parseOptions(find, opts...)
 
 	if len(query.ids) > 0 {
-		docs, err := c.fetchDocsByID(ctx, query.ids[0:1], tx)
+		docs, err := c.fetchDocsByID(ctx, tx, query.ids[0:1])
 		if err != nil {
 			return Document[T]{}, err
 		}
@@ -309,7 +309,7 @@ func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query, opts ...Opt
 		return docs[0], nil
 	}
 
-	docs, err := c.fetchDocsByQuery(ctx, query.Limit(1), tx)
+	docs, err := c.fetchDocsByQuery(ctx, tx, query.Limit(1))
 	if err != nil {
 		return Document[T]{}, err
 	}
@@ -531,7 +531,7 @@ func (c *CollectionRef[T]) bulkOperation(
 	docIDs := query.ids
 
 	if len(docIDs) == 0 {
-		docs, err := c.fetchDocsByQuery(ctx, query, nil)
+		docs, err := c.fetchDocsByQuery(ctx, nil, query)
 		if err != nil {
 			return err
 		}
@@ -566,8 +566,8 @@ func (c *CollectionRef[T]) bulkOperation(
 // fetch documents based on provided ids
 func (c *CollectionRef[T]) fetchDocsByID(
 	ctx context.Context,
-	ids []string,
 	tx *Transaction,
+	ids []string,
 ) ([]Document[T], error) {
 	const batchSize = 100
 	var docRefs []*firestore.DocumentRef
@@ -630,8 +630,8 @@ func (c *CollectionRef[T]) fetchDocsByID(
 // fetch documents based on provided Query
 func (c *CollectionRef[T]) fetchDocsByQuery(
 	ctx context.Context,
-	query Query,
 	tx *Transaction,
+	query Query,
 ) ([]Document[T], error) {
 	builtQuery := c.buildQuery(query)
 
