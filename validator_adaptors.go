@@ -39,3 +39,20 @@ func (v ValFuncCtx) toValFuncInternal() valFuncInternal {
 		return v(ctx, fs)
 	}
 }
+
+// A ValFuncTx is a transaction-aware function
+// that's executed during a field validation.
+// Useful when a validation may need to be
+// executed inside a transaction.
+type ValFuncTx func(tx *Transaction, fs FieldScope) (bool, error)
+
+// turns exported func type to internal val func type
+func (v ValFuncTx) toValFuncInternal() valFuncInternal {
+	if v == nil {
+		return nil
+	}
+
+	return func(_ context.Context, tx *Transaction, fs FieldScope) (bool, error) {
+		return v(tx, fs)
+	}
+}
