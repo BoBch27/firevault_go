@@ -88,7 +88,7 @@ func (v *validator) registerValidation(
 }
 
 // the function that's executed during transformations
-type tranFuncInternal func(ctx context.Context, fs FieldScope) (interface{}, error)
+type tranFuncInternal func(ctx context.Context, tx *Transaction, fs FieldScope) (interface{}, error)
 
 // holds transform func as well as whether it can be called on nil values
 type transFnWrapper struct {
@@ -544,7 +544,7 @@ func (v *validator) applyRules(
 		}
 
 		if rule.isTransform {
-			err := v.applyTransformation(ctx, fs, rule)
+			err := v.applyTransformation(ctx, opts.tx, fs, rule)
 			if err != nil {
 				return err
 			}
@@ -564,6 +564,7 @@ func (v *validator) applyRules(
 // apply transformation rule
 func (v *validator) applyTransformation(
 	ctx context.Context,
+	tx *Transaction,
 	fs *fieldScope,
 	rule *ruleData,
 ) error {
@@ -574,7 +575,7 @@ func (v *validator) applyTransformation(
 		return nil
 	}
 
-	newValue, err := rule.transFn(ctx, fs)
+	newValue, err := rule.transFn(ctx, tx, fs)
 	if err != nil {
 		return err
 	}
