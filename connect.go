@@ -109,7 +109,7 @@ func (c *Connection) RegisterValidation(
 // prior to any validation.
 func (c *Connection) RegisterTransformation(
 	name string,
-	transformation TransformationFn,
+	transformation tranFuncInternal,
 	runOnNil ...bool,
 ) error {
 	if c == nil {

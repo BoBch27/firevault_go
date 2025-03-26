@@ -29,7 +29,7 @@ var (
 		"min":               validateMin,
 	}
 
-	builtInTransformators = map[string]TransformationFn{
+	builtInTransformators = map[string]tranFuncInternal{
 		"uppercase":  transformUppercase,
 		"lowercase":  transformLowercase,
 		"trim_space": transformTrimSpace,

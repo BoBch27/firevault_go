@@ -423,7 +423,7 @@ func TestRegisterTransformation(t *testing.T) {
 	tests := []struct {
 		name           string
 		transName      string
-		transformation TransformationFn
+		transformation tranFuncInternal
 		runOnNil       bool
 		wantErr        bool
 	}{

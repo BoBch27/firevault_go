@@ -30,7 +30,7 @@ type fieldScope struct {
 type ruleData struct {
 	name        string
 	valFn       valFuncInternal
-	transFn     TransformationFn
+	transFn     tranFuncInternal
 	param       string
 	isTransform bool
 	runOnNil    bool
