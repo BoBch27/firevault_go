@@ -34,7 +34,7 @@ func newValidator() *validator {
 		}
 
 		// no need to error check here, built in validations are always valid
-		_ = validator.registerValidation(name, val, true, runOnNil)
+		_ = validator.registerValidation(name, val.toValFuncInternal(), true, runOnNil)
 	}
 
 	// register predefined transformators
