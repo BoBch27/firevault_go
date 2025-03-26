@@ -221,7 +221,7 @@ func (o Options) RequireExists() Options {
 // to Transaction.
 //
 // Does not apply to the Validate method.
-func (o Options) Transaction(t *Transaction) Options {
-	o.transaction = t
+func (o Options) Transaction(tx *Transaction) Options {
+	o.transaction = tx
 	return o
 }
