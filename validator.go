@@ -749,6 +749,7 @@ func (v *validator) processSliceValue(
 // generate fieldError
 func (v *validator) generateFieldErr(fs *fieldScope) error {
 	fe := &fieldError{
+		collPath:     fs.collPath,
 		field:        fs.field,
 		structField:  fs.structField,
 		displayField: fs.displayField,
