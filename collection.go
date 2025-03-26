@@ -83,9 +83,9 @@ func (c *CollectionRef[T]) Validate(ctx context.Context, data *T, opts ...Option
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, _, _, _, _ := c.parseOptions(validate, opts...)
+	valOpts, _, _, _, _ := c.parseOptions(validate, opts...)
 
-	_, err := c.connection.validator.validate(ctx, data, valOptions)
+	_, err := c.connection.validator.validate(ctx, data, valOpts)
 	return err
 }
 
@@ -106,9 +106,9 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 		return "", errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, id, _, _, _, tx := c.parseOptions(create, opts...)
+	valOpts, id, _, _, _ := c.parseOptions(create, opts...)
 
-	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
+	dataMap, err := c.connection.validator.validate(ctx, data, valOpts)
 	if err != nil {
 		return "", err
 	}
@@ -119,9 +119,9 @@ func (c *CollectionRef[T]) Create(ctx context.Context, data *T, opts ...Options)
 	}
 
 	// perform transaction if provided opt
-	if tx != nil {
+	if valOpts.tx != nil {
 		query := Query{ids: []string{id}} // needed to run transac operation
-		err = c.transacOperation(tx, query, func(tx *firestore.Transaction, docID string) error {
+		err = c.transacOperation(valOpts.tx, query, func(tx *firestore.Transaction, docID string) error {
 			return tx.Create(c.ref.Doc(docID), dataMap)
 		})
 		if err != nil {
@@ -174,9 +174,9 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	valOptions, _, precond, merge, mergeFields, tx := c.parseOptions(update, opts...)
+	valOpts, _, precond, merge, mergeFields := c.parseOptions(update, opts...)
 
-	dataMap, err := c.connection.validator.validate(ctx, data, valOptions)
+	dataMap, err := c.connection.validator.validate(ctx, data, valOpts)
 	if err != nil {
 		return err
 	}
@@ -184,8 +184,8 @@ func (c *CollectionRef[T]) Update(ctx context.Context, query Query, data *T, opt
 	updates := c.parseUpdates(dataMap, merge, mergeFields)
 
 	// perform transaction if provided opt
-	if tx != nil {
-		return c.transacOperation(tx, query, func(tx *firestore.Transaction, docID string) error {
+	if valOpts.tx != nil {
+		return c.transacOperation(valOpts.tx, query, func(tx *firestore.Transaction, docID string) error {
 			if precond != nil {
 				return tx.Update(c.ref.Doc(docID), updates, precond)
 			}
@@ -236,11 +236,11 @@ func (c *CollectionRef[T]) Delete(ctx context.Context, query Query, opts ...Opti
 		return errors.New("firevault: nil CollectionRef")
 	}
 
-	_, _, precond, _, _, tx := c.parseOptions(delete, opts...)
+	valOpts, _, precond, _, _ := c.parseOptions(delete, opts...)
 
 	// perform transaction if provided opt
-	if tx != nil {
-		return c.transacOperation(tx, query, func(tx *firestore.Transaction, docID string) error {
+	if valOpts.tx != nil {
+		return c.transacOperation(valOpts.tx, query, func(tx *firestore.Transaction, docID string) error {
 			if precond != nil {
 				return tx.Delete(c.ref.Doc(docID), precond)
 			}
@@ -270,13 +270,13 @@ func (c *CollectionRef[T]) Find(ctx context.Context, query Query, opts ...Option
 		return nil, errors.New("firevault: nil CollectionRef")
 	}
 
-	_, _, _, _, _, tx := c.parseOptions(find, opts...)
+	valOpts, _, _, _, _ := c.parseOptions(find, opts...)
 
 	if len(query.ids) > 0 {
-		return c.fetchDocsByID(ctx, tx, query.ids)
+		return c.fetchDocsByID(ctx, valOpts.tx, query.ids)
 	}
 
-	return c.fetchDocsByQuery(ctx, tx, query)
+	return c.fetchDocsByQuery(ctx, valOpts.tx, query)
 }
 
 // Find the first Firestore document which
@@ -293,10 +293,10 @@ func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query, opts ...Opt
 		return Document[T]{}, errors.New("firevault: nil CollectionRef")
 	}
 
-	_, _, _, _, _, tx := c.parseOptions(find, opts...)
+	valOpts, _, _, _, _ := c.parseOptions(find, opts...)
 
 	if len(query.ids) > 0 {
-		docs, err := c.fetchDocsByID(ctx, tx, query.ids[0:1])
+		docs, err := c.fetchDocsByID(ctx, valOpts.tx, query.ids[0:1])
 		if err != nil {
 			return Document[T]{}, err
 		}
@@ -308,7 +308,7 @@ func (c *CollectionRef[T]) FindOne(ctx context.Context, query Query, opts ...Opt
 		return docs[0], nil
 	}
 
-	docs, err := c.fetchDocsByQuery(ctx, tx, query.Limit(1))
+	docs, err := c.fetchDocsByQuery(ctx, valOpts.tx, query.Limit(1))
 	if err != nil {
 		return Document[T]{}, err
 	}
@@ -365,9 +365,9 @@ const (
 func (c *CollectionRef[T]) parseOptions(
 	method methodType,
 	opts ...Options,
-) (validationOpts, string, firestore.Precondition, bool, []string, *Transaction) {
+) (validationOpts, string, firestore.Precondition, bool, []string) {
 	if len(opts) == 0 {
-		return validationOpts{method: method}, "", nil, true, nil, nil
+		return validationOpts{method: method}, "", nil, true, nil
 	}
 
 	// parse options
@@ -378,6 +378,7 @@ func (c *CollectionRef[T]) parseOptions(
 		skipValFields:      passedOpts.skipValFields,
 		emptyFieldsAllowed: passedOpts.allowEmptyFields,
 		modifyOriginal:     passedOpts.modifyOriginal,
+		tx:                 passedOpts.transaction,
 	}
 
 	if method == validate && passedOpts.method != "" {
@@ -386,14 +387,14 @@ func (c *CollectionRef[T]) parseOptions(
 
 	if method == update && passedOpts.disableMerge {
 		options.deleteEmpty = true
-		return options, passedOpts.id, passedOpts.precondition, false, nil, passedOpts.transaction
+		return options, passedOpts.id, passedOpts.precondition, false, nil
 	}
 
 	if method == update && len(passedOpts.mergeFields) > 0 {
-		return options, passedOpts.id, passedOpts.precondition, true, passedOpts.mergeFields, passedOpts.transaction
+		return options, passedOpts.id, passedOpts.precondition, true, passedOpts.mergeFields
 	}
 
-	return options, passedOpts.id, passedOpts.precondition, true, nil, passedOpts.transaction
+	return options, passedOpts.id, passedOpts.precondition, true, nil
 }
 
 // build a new firestore query
