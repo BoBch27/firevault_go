@@ -18,7 +18,7 @@ func (v ValFunc) toValFuncInternal() valFuncInternal {
 		return nil
 	}
 
-	return func(_ context.Context, fs FieldScope) (bool, error) {
+	return func(_ context.Context, _ *Transaction, fs FieldScope) (bool, error) {
 		return v(fs)
 	}
 }
@@ -35,5 +35,7 @@ func (v ValFuncCtx) toValFuncInternal() valFuncInternal {
 		return nil
 	}
 
-	return valFuncInternal(v)
+	return func(ctx context.Context, _ *Transaction, fs FieldScope) (bool, error) {
+		return v(ctx, fs)
+	}
 }

@@ -167,7 +167,7 @@ func TestIndividualValidations(t *testing.T) {
 				param: tt.param,
 			}
 
-			valid, err := validator.fn(context.Background(), fs)
+			valid, err := validator.fn(context.Background(), nil, fs)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
@@ -191,7 +191,7 @@ func TestCustomRules(t *testing.T) {
 	// Custom validation rule
 	err := v.registerValidation(
 		"custom",
-		func(ctx context.Context, fs FieldScope) (bool, error) {
+		func(ctx context.Context, tx *Transaction, fs FieldScope) (bool, error) {
 			return fs.Value().String() == "custom", nil
 		},
 		false,
@@ -383,7 +383,7 @@ func TestRegisterValidation(t *testing.T) {
 		{
 			name:    "Valid registration",
 			valName: "test_validation",
-			validation: func(ctx context.Context, fs FieldScope) (bool, error) {
+			validation: func(ctx context.Context, tx *Transaction, fs FieldScope) (bool, error) {
 				return true, nil
 			},
 			runOnNil: false,
@@ -392,7 +392,7 @@ func TestRegisterValidation(t *testing.T) {
 		{
 			name:    "Empty name",
 			valName: "",
-			validation: func(ctx context.Context, fs FieldScope) (bool, error) {
+			validation: func(ctx context.Context, tx *Transaction, fs FieldScope) (bool, error) {
 				return true, nil
 			},
 			runOnNil: false,
