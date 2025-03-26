@@ -19,7 +19,7 @@ var (
 		"omitempty_validate": {},
 	}
 
-	builtInValidators = map[string]ValidationFn{
+	builtInValidators = map[string]valFuncInternal{
 		"required":          validateRequired,
 		"required_create":   validateRequired,
 		"required_update":   validateRequired,

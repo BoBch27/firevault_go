@@ -46,20 +46,19 @@ func newValidator() *validator {
 	return validator
 }
 
-// A ValidationFn is the function that's executed
-// during a validation.
-type ValidationFn func(ctx context.Context, fs FieldScope) (bool, error)
+// the function that's executed during validations
+type valFuncInternal func(ctx context.Context, fs FieldScope) (bool, error)
 
 // holds val func as well as whether it can be called on nil values
 type valFnWrapper struct {
-	fn       ValidationFn
+	fn       valFuncInternal
 	runOnNil bool
 }
 
 // register a validation
 func (v *validator) registerValidation(
 	name string,
-	validation ValidationFn,
+	validation valFuncInternal,
 	builtIn bool,
 	runOnNil bool,
 ) error {
@@ -482,7 +481,7 @@ func (v *validator) extractRuleData(rules []string) []*ruleData {
 
 	for _, rule := range rules {
 		isTransform := strings.HasPrefix(rule, "transform=")
-		var valFn ValidationFn
+		var valFn valFuncInternal
 		var transFn TransformationFn
 		var param string
 		var runOnNil bool

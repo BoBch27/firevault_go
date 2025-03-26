@@ -77,7 +77,7 @@ func (c *Connection) Close() error {
 // prior to any validation.
 func (c *Connection) RegisterValidation(
 	name string,
-	validation ValidationFn,
+	validation valFuncInternal,
 	runOnNil ...bool,
 ) error {
 	if c == nil {

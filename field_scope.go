@@ -29,7 +29,7 @@ type fieldScope struct {
 // about each parsed rule.
 type ruleData struct {
 	name        string
-	valFn       ValidationFn
+	valFn       valFuncInternal
 	transFn     TransformationFn
 	param       string
 	isTransform bool
