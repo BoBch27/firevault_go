@@ -23,6 +23,7 @@ import (
 type CollectionRef[T interface{}] struct {
 	connection *Connection
 	ref        *firestore.CollectionRef
+	path       string
 }
 
 // Document holds the ID and data related to a fetched
@@ -74,7 +75,7 @@ func Collection[T interface{}](connection *Connection, path string) *CollectionR
 		return nil
 	}
 
-	return &CollectionRef[T]{connection, collectionRef}
+	return &CollectionRef[T]{connection, collectionRef, path}
 }
 
 // Validate and transform provided data.
@@ -367,12 +368,13 @@ func (c *CollectionRef[T]) parseOptions(
 	opts ...Options,
 ) (validationOpts, string, firestore.Precondition, bool, []string) {
 	if len(opts) == 0 {
-		return validationOpts{method: method}, "", nil, true, nil
+		return validationOpts{collPath: c.path, method: method}, "", nil, true, nil
 	}
 
 	// parse options
 	passedOpts := opts[0]
 	options := validationOpts{
+		collPath:           c.path,
 		method:             method,
 		skipValidation:     passedOpts.skipValidation,
 		skipValFields:      passedOpts.skipValFields,

@@ -6,6 +6,7 @@ import "reflect"
 // information to help validate it.
 // It complies with the FieldScope interface.
 type fieldScope struct {
+	collPath     string
 	strct        reflect.Value
 	field        string
 	structField  string
@@ -40,6 +41,10 @@ type ruleData struct {
 // FieldScope interface gives access to all
 // information needed to validate a field.
 type FieldScope interface {
+	// Collection returns the path of the
+	// collection that contains the document
+	// modeled by the top-level struct.
+	Collection() string
 	// Struct returns the reflected parent struct
 	// of the current field, if any.
 	Struct() reflect.Value
@@ -79,6 +84,13 @@ type FieldScope interface {
 	// Param returns the param value, in string form
 	// for comparison.
 	Param() string
+}
+
+// Collection returns the path of the
+// collection that contains the document
+// modeled by the top-level struct.
+func (fs *fieldScope) Collection() string {
+	return fs.collPath
 }
 
 // Struct returns the reflected parent struct
