@@ -37,27 +37,26 @@ func NewOptions() Options {
 	return Options{}
 }
 
-// Skip all validations - the "name" rule,
-// "omitempty" rules and "ignore" rule will
-// still be honoured.
+// Skip validation for specific fields,
+// while still enforcing the name, ignore, and
+// omitempty rules.
 //
 // If no field paths are provided, validation
-// will be skipped for all fields.
-// Otherwise, validation will only be skipped
-// for the specified field paths
-// (using dot-separated strings).
+// is skipped for all fields. Otherwise, only
+// the specified fields (dot-separated paths)
+// are skipped.
 //
-// Calling this method without specifying
-// fields will override any previous calls that
-// specified particular fields, ensuring
-// validation is skipped for all fields.
+// Calling this method without arguments
+// overrides previous calls that specified
+// particular fields, ensuring validation
+// is skipped for all fields.
 //
 // Multiple calls to the method, with specified
 // fields, are cumulative.
 //
 // Only applies to the Validate, Create and
 // Update methods.
-func (o Options) SkipValidation(fields ...string) Options {
+func (o Options) SkipValidationFields(fields ...string) Options {
 	o.skipValidation = true
 
 	if len(fields) > 0 {
