@@ -37,8 +37,8 @@ type ruleData struct {
 	methodOnly  methodType
 }
 
-// A Firevault FieldScope interface gives access
-// to all information needed to validate a field.
+// FieldScope interface gives access to all
+// information needed to validate a field.
 type FieldScope interface {
 	// Struct returns the reflected parent struct
 	// of the current field, if any.

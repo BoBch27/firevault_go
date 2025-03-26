@@ -2,13 +2,13 @@ package firevault
 
 import "context"
 
-// A ValidationFunc interface wraps different
+// ValidationFunc interface wraps different
 // validation function types.
 type ValidationFunc interface {
 	toValFuncInternal() valFuncInternal
 }
 
-// A ValFunc is a function that's executed
+// ValFunc is a function that's executed
 // during a field validation.
 type ValFunc func(fs FieldScope) (bool, error)
 
@@ -23,10 +23,11 @@ func (v ValFunc) toValFuncInternal() valFuncInternal {
 	}
 }
 
-// A ValFuncCtx is a context-aware function
+// ValFuncCtx is a context-aware function
 // that's executed during a field validation.
-// Useful when a validation may depend
-// dynamically on a context.
+//
+// Useful when a validation requires access
+// to a context.
 type ValFuncCtx func(ctx context.Context, fs FieldScope) (bool, error)
 
 // turns exported func type to internal val func type
@@ -40,10 +41,15 @@ func (v ValFuncCtx) toValFuncInternal() valFuncInternal {
 	}
 }
 
-// A ValFuncTx is a transaction-aware function
+// ValFuncTx is a transaction-aware function
 // that's executed during a field validation.
-// Useful when a validation may need to be
+//
+// Useful when a validation needs to be
 // executed inside a transaction.
+//
+// The transaction argument is nil, unless
+// explicitly provided in the Options of the
+// calling CollectionRef method.
 type ValFuncTx func(tx *Transaction, fs FieldScope) (bool, error)
 
 // turns exported func type to internal val func type
@@ -57,11 +63,17 @@ func (v ValFuncTx) toValFuncInternal() valFuncInternal {
 	}
 }
 
-// A ValFuncCtx is a context-aware and
+// ValFuncCtxTx is a context-aware and
 // transaction-aware function that's executed
-// during a field validation. Useful when a
-// validation may depend on a context and needs
-// to be executed inside a transaction.
+// during a field validation.
+//
+// Useful when a validation requires access to
+// a context and needs to be executed inside a
+// transaction.
+//
+// The transaction argument is nil, unless
+// explicitly provided in the Options of the
+// calling CollectionRef method.
 type ValFuncCtxTx func(ctx context.Context, tx *Transaction, fs FieldScope) (bool, error)
 
 // turns exported func type to internal val func type
@@ -73,13 +85,13 @@ func (v ValFuncCtxTx) toValFuncInternal() valFuncInternal {
 	return valFuncInternal(v)
 }
 
-// A TransformationFunc interface wraps
+// TransformationFunc interface wraps
 // different transformation function types.
 type TransformationFunc interface {
 	toTranFuncInternal() tranFuncInternal
 }
 
-// A TranFunc is a function that's executed
+// TranFunc is a function that's executed
 // during a field transformation.
 type TranFunc func(fs FieldScope) (interface{}, error)
 
@@ -94,10 +106,11 @@ func (t TranFunc) toTranFuncInternal() tranFuncInternal {
 	}
 }
 
-// A TranFuncCtx is a context-aware function
+// TranFuncCtx is a context-aware function
 // that's executed during a field transformation.
-// Useful when a transformation may depend
-// dynamically on a context.
+//
+// Useful when a transformation requires access
+// to a context.
 type TranFuncCtx func(ctx context.Context, fs FieldScope) (interface{}, error)
 
 // turns exported func type to internal val func type
@@ -111,10 +124,15 @@ func (t TranFuncCtx) toTranFuncInternal() tranFuncInternal {
 	}
 }
 
-// A TranFuncTx is a transaction-aware function
+// TranFuncTx is a transaction-aware function
 // that's executed during a field transformation.
-// Useful when a transformation may need to be
+//
+// Useful when a transformation needs to be
 // executed inside a transaction.
+//
+// The transaction argument is nil, unless
+// explicitly provided in the Options of the
+// calling CollectionRef method.
 type TranFuncTx func(tx *Transaction, fs FieldScope) (interface{}, error)
 
 // turns exported func type to internal val func type
@@ -128,11 +146,17 @@ func (t TranFuncTx) toTranFuncInternal() tranFuncInternal {
 	}
 }
 
-// A TranFuncCtxTx is a context-aware and
+// TranFuncCtxTx is a context-aware and
 // transaction-aware function that's executed
-// during a field transformation. Useful when a
-// transformation may depend on a context and
-// needs to be executed inside a transaction.
+// during a field transformation.
+//
+// Useful when a transformation requires
+// access to a context and needs to be executed
+// inside a transaction.
+//
+// The transaction argument is nil, unless
+// explicitly provided in the Options of the
+// calling CollectionRef method.
 type TranFuncCtxTx func(ctx context.Context, tx *Transaction, fs FieldScope) (interface{}, error)
 
 // turns exported func type to internal val func type

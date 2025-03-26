@@ -1,7 +1,6 @@
 package firevault
 
-// A Firevault Query helps to filter and order
-// Firestore documents.
+// Query helps to filter and order Firestore documents.
 //
 // Query values are immutable. Each Query method creates
 // a new Query - it does not modify the old.
@@ -33,8 +32,7 @@ type order struct {
 
 // Create a new Query instance.
 //
-// A Firevault Query helps to filter and order
-// Firestore documents.
+// Query helps to filter and order Firestore documents.
 //
 // Query values are immutable. Each Query method creates
 // a new Query - it does not modify the old.

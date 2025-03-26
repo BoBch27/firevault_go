@@ -7,8 +7,8 @@ import (
 	"cloud.google.com/go/firestore"
 )
 
-// A Firevault Connection provides access to
-// Firevault services.
+// Connection provides access to Firevault
+// services.
 //
 // It is designed to be thread-safe and used
 // as a singleton instance.
@@ -25,8 +25,8 @@ type Connection struct {
 
 // Create a new Connection instance.
 //
-// A Firevault Connection provides access to
-// Firevault services.
+// Connection provides access to Firevault
+// services.
 //
 // It is designed to be thread-safe and used
 // as a singleton instance.
