@@ -77,7 +77,7 @@ func (c *Connection) Close() error {
 // prior to any validation.
 func (c *Connection) RegisterValidation(
 	name string,
-	validation valFuncInternal,
+	validation Validation,
 	runOnNil ...bool,
 ) error {
 	if c == nil {
@@ -89,7 +89,7 @@ func (c *Connection) RegisterValidation(
 		nilCallable = runOnNil[0]
 	}
 
-	return c.validator.registerValidation(name, validation, false, nilCallable)
+	return c.validator.registerValidation(name, validation.toValFuncInternal(), false, nilCallable)
 }
 
 // Register a new transformation rule.
