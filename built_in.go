@@ -19,7 +19,7 @@ var (
 		"omitempty_validate": {},
 	}
 
-	builtInValidators = map[string]valFuncInternal{
+	builtInValidators = map[string]ValidationFunc{
 		"required":          validateRequired,
 		"required_create":   validateRequired,
 		"required_update":   validateRequired,
@@ -57,17 +57,17 @@ func hasValue(fieldKind reflect.Kind, fieldValue reflect.Value) bool {
 }
 
 // validates if field is zero
-func validateRequired(_ context.Context, fs FieldScope) (bool, error) {
+func validateRequired(fs FieldScope) (bool, error) {
 	return hasValue(fs.Kind(), fs.Value()), nil
 }
 
 // validates if field is a valid email address
-func validateEmail(_ context.Context, fs FieldScope) (bool, error) {
+func validateEmail(fs FieldScope) (bool, error) {
 	return emailRegex().MatchString(fs.Value().String()), nil
 }
 
 // validates if field's value is less than or equal to param's value
-func validateMax(_ context.Context, fs FieldScope) (bool, error) {
+func validateMax(fs FieldScope) (bool, error) {
 	if fs.Param() == "" {
 		return false, errors.New("firevault: provide a max param - " + fs.Path())
 	}
@@ -120,7 +120,7 @@ func validateMax(_ context.Context, fs FieldScope) (bool, error) {
 }
 
 // validates if field's value is greater than or equal to param's value
-func validateMin(_ context.Context, fs FieldScope) (bool, error) {
+func validateMin(fs FieldScope) (bool, error) {
 	if fs.Param() == "" {
 		return false, errors.New("firevault: provide a min param - " + fs.Path())
 	}
