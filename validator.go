@@ -47,7 +47,7 @@ func newValidator() *validator {
 }
 
 // the function that's executed during validations
-type valFuncInternal func(ctx context.Context, fs FieldScope) (bool, error)
+type valFuncInternal func(ctx context.Context, tx *Transaction, fs FieldScope) (bool, error)
 
 // holds val func as well as whether it can be called on nil values
 type valFnWrapper struct {
@@ -362,7 +362,7 @@ func (v *validator) processStructField(
 		fieldValue := fs.value
 
 		// apply validations and transformations
-		err := v.applyRules(ctx, fs, opts.method)
+		err := v.applyRules(ctx, fs, opts)
 		if err != nil {
 			return "", nil, err
 		}
@@ -536,11 +536,11 @@ func (v *validator) extractRuleData(rules []string) []*ruleData {
 func (v *validator) applyRules(
 	ctx context.Context,
 	fs *fieldScope,
-	method methodType,
+	opts validationOpts,
 ) error {
 	for _, rule := range fs.rules {
 		// skip method specific rules which don't match current method
-		if rule.methodOnly != "" && rule.methodOnly != method {
+		if rule.methodOnly != "" && rule.methodOnly != opts.method {
 			continue
 		}
 
@@ -553,7 +553,7 @@ func (v *validator) applyRules(
 			continue
 		}
 
-		err := v.applyValidation(ctx, fs, rule)
+		err := v.applyValidation(ctx, opts.tx, fs, rule)
 		if err != nil {
 			return err
 		}
@@ -596,6 +596,7 @@ func (v *validator) applyTransformation(
 // apply validation rule
 func (v *validator) applyValidation(
 	ctx context.Context,
+	tx *Transaction,
 	fs *fieldScope,
 	rule *ruleData,
 ) error {
@@ -607,7 +608,7 @@ func (v *validator) applyValidation(
 		return nil
 	}
 
-	valid, err := rule.valFn(ctx, fs)
+	valid, err := rule.valFn(ctx, tx, fs)
 	if err != nil {
 		return err
 	}

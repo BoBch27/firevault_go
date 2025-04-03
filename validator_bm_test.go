@@ -38,7 +38,7 @@ func BenchmarkValidateWithCustomRules(b *testing.B) {
 	v := newValidator()
 	err := v.registerValidation(
 		"is_thirty",
-		func(ctx context.Context, fs FieldScope) (bool, error) {
+		func(ctx context.Context, tx *Transaction, fs FieldScope) (bool, error) {
 			return fs.Value().Int() == 30, nil
 		},
 		false,
