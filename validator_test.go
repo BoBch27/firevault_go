@@ -376,7 +376,7 @@ func TestRegisterValidation(t *testing.T) {
 	tests := []struct {
 		name       string
 		valName    string
-		validation ValidationFn
+		validation valFuncInternal
 		runOnNil   bool
 		wantErr    bool
 	}{
