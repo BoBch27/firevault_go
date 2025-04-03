@@ -13,7 +13,7 @@ import (
 type validator struct {
 	validations     map[string]valFnWrapper
 	transformations map[string]transFnWrapper
-	errFormatters   []ErrorFormatterFn
+	errFormatters   []ErrorFormatterFunc
 	cache           *structCache
 }
 
@@ -21,7 +21,7 @@ func newValidator() *validator {
 	validator := &validator{
 		make(map[string]valFnWrapper, len(builtInValidators)),
 		make(map[string]transFnWrapper, len(builtInTransformators)),
-		make([]ErrorFormatterFn, 0),
+		make([]ErrorFormatterFunc, 0),
 		&structCache{},
 	}
 
@@ -128,16 +128,16 @@ func (v *validator) registerTransformation(
 	return nil
 }
 
-// An ErrorFormatterFn is the function that's executed
+// An ErrorFormatterFunc is the function that's executed
 // to generate a custom, user-friendly error message,
 // based on FieldError's fields.
 //
 // If the function returns a nil error, an instance
 // of FieldError will be returned instead.
-type ErrorFormatterFn func(fe FieldError) error
+type ErrorFormatterFunc func(fe FieldError) error
 
 // register an error formatter
-func (v *validator) registerErrorFormatter(errFormatter ErrorFormatterFn) error {
+func (v *validator) registerErrorFormatter(errFormatter ErrorFormatterFunc) error {
 	if v == nil {
 		return errors.New("firevault: nil validator")
 	}

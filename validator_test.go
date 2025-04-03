@@ -266,14 +266,14 @@ func TestErrorFormatting(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		errorFormatters []ErrorFormatterFn
+		errorFormatters []ErrorFormatterFunc
 		data            interface{}
 		expectedErrMsg  string
 		expectCustomErr bool
 	}{
 		{
 			name: "Custom error message for required field",
-			errorFormatters: []ErrorFormatterFn{
+			errorFormatters: []ErrorFormatterFunc{
 				func(fe FieldError) error {
 					// Create a custom error message for required fields
 					if fe.Rule() == "required" {
@@ -290,7 +290,7 @@ func TestErrorFormatting(t *testing.T) {
 		},
 		{
 			name: "Multiple error formatters with first taking precedence",
-			errorFormatters: []ErrorFormatterFn{
+			errorFormatters: []ErrorFormatterFunc{
 				func(fe FieldError) error {
 					// First error formatter
 					if fe.Rule() == "required" {
@@ -314,7 +314,7 @@ func TestErrorFormatting(t *testing.T) {
 		},
 		{
 			name: "Multiple formatters - first returns nil",
-			errorFormatters: []ErrorFormatterFn{
+			errorFormatters: []ErrorFormatterFunc{
 				func(fe FieldError) error {
 					// First formatter returns nil
 					return nil
@@ -469,7 +469,7 @@ func TestRegisterErrorFormatter(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		errFormatter ErrorFormatterFn
+		errFormatter ErrorFormatterFunc
 		wantErr      bool
 	}{
 		{

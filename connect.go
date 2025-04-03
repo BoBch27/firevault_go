@@ -147,7 +147,7 @@ func (c *Connection) RegisterTransformation(
 // Registering error formatters is not thread-safe;
 // it is intended that all such functions
 // be registered, prior to any validation.
-func (c *Connection) RegisterErrorFormatter(errorFormatter ErrorFormatterFn) error {
+func (c *Connection) RegisterErrorFormatter(errorFormatter ErrorFormatterFunc) error {
 	if c == nil {
 		return errors.New("firevault: nil Connection")
 	}
