@@ -10,34 +10,6 @@ import (
 	"time"
 )
 
-// A ValidationFn is the function that's executed
-// during a validation.
-type ValidationFn func(ctx context.Context, fs FieldScope) (bool, error)
-
-// holds val func as well as whether it can be called on nil values
-type valFnWrapper struct {
-	fn       ValidationFn
-	runOnNil bool
-}
-
-// A TransformationFn is the function that's executed
-// during a transformation.
-type TransformationFn func(ctx context.Context, fs FieldScope) (interface{}, error)
-
-// holds transform func as well as whether it can be called on nil values
-type transFnWrapper struct {
-	fn       TransformationFn
-	runOnNil bool
-}
-
-// An ErrorFormatterFn is the function that's executed
-// to generate a custom, user-friendly error message,
-// based on FieldError's fields.
-//
-// If the function returns a nil error, an instance
-// of FieldError will be returned instead.
-type ErrorFormatterFn func(fe FieldError) error
-
 type validator struct {
 	validations     map[string]valFnWrapper
 	transformations map[string]transFnWrapper
@@ -74,6 +46,16 @@ func newValidator() *validator {
 	return validator
 }
 
+// A ValidationFn is the function that's executed
+// during a validation.
+type ValidationFn func(ctx context.Context, fs FieldScope) (bool, error)
+
+// holds val func as well as whether it can be called on nil values
+type valFnWrapper struct {
+	fn       ValidationFn
+	runOnNil bool
+}
+
 // register a validation
 func (v *validator) registerValidation(
 	name string,
@@ -104,6 +86,16 @@ func (v *validator) registerValidation(
 
 	v.validations[name] = valFnWrapper{validation, runOnNil}
 	return nil
+}
+
+// A TransformationFn is the function that's executed
+// during a transformation.
+type TransformationFn func(ctx context.Context, fs FieldScope) (interface{}, error)
+
+// holds transform func as well as whether it can be called on nil values
+type transFnWrapper struct {
+	fn       TransformationFn
+	runOnNil bool
 }
 
 // register a transformation
@@ -137,6 +129,14 @@ func (v *validator) registerTransformation(
 	v.transformations[name] = transFnWrapper{transformation, runOnNil}
 	return nil
 }
+
+// An ErrorFormatterFn is the function that's executed
+// to generate a custom, user-friendly error message,
+// based on FieldError's fields.
+//
+// If the function returns a nil error, an instance
+// of FieldError will be returned instead.
+type ErrorFormatterFn func(fe FieldError) error
 
 // register an error formatter
 func (v *validator) registerErrorFormatter(errFormatter ErrorFormatterFn) error {
