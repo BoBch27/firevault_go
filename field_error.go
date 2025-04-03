@@ -10,6 +10,7 @@ import (
 // needed for error message creation.
 // It complies with the FieldError interface.
 type fieldError struct {
+	collPath     string
 	field        string
 	structField  string
 	displayField string
@@ -26,6 +27,10 @@ type fieldError struct {
 // validation error details, which aid in
 // constructing a custom error message.
 type FieldError interface {
+	// Collection returns the path of the
+	// collection that contains the document
+	// modeled by the top-level struct.
+	Collection() string
 	// Field returns the field's name, with the tag
 	// name taking precedence over the field's
 	// struct name.
@@ -63,6 +68,13 @@ type FieldError interface {
 	Param() string
 	// Error returns the error message.
 	Error() string
+}
+
+// Collection returns the path of the
+// collection that contains the document
+// modeled by the top-level struct.
+func (fe *fieldError) Collection() string {
+	return fe.collPath
 }
 
 // Field returns the field's name, with the tag
