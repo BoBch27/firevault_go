@@ -89,7 +89,12 @@ func (c *Connection) RegisterValidation(
 		nilCallable = runOnNil[0]
 	}
 
-	return c.validator.registerValidation(name, validation.toValFuncInternal(), false, nilCallable)
+	return c.validator.registerValidation(
+		name,
+		validation.toValFuncInternal(),
+		false,
+		nilCallable,
+	)
 }
 
 // Register a new transformation rule.
@@ -109,7 +114,7 @@ func (c *Connection) RegisterValidation(
 // prior to any validation.
 func (c *Connection) RegisterTransformation(
 	name string,
-	transformation tranFuncInternal,
+	transformation Transformation,
 	runOnNil ...bool,
 ) error {
 	if c == nil {
@@ -121,7 +126,12 @@ func (c *Connection) RegisterTransformation(
 		nilCallable = runOnNil[0]
 	}
 
-	return c.validator.registerTransformation(name, transformation, false, nilCallable)
+	return c.validator.registerTransformation(
+		name,
+		transformation.toTranFuncInternal(),
+		false,
+		nilCallable,
+	)
 }
 
 // Register a new error formatter.
