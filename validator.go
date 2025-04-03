@@ -159,6 +159,7 @@ type validationOpts struct {
 	emptyFieldsAllowed []string
 	modifyOriginal     bool
 	deleteEmpty        bool
+	tx                 *Transaction
 }
 
 // check if passed data is a struct pointer and reflect it if so
