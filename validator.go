@@ -87,20 +87,19 @@ func (v *validator) registerValidation(
 	return nil
 }
 
-// A TransformationFn is the function that's executed
-// during a transformation.
-type TransformationFn func(ctx context.Context, fs FieldScope) (interface{}, error)
+// the function that's executed during transformations
+type tranFuncInternal func(ctx context.Context, fs FieldScope) (interface{}, error)
 
 // holds transform func as well as whether it can be called on nil values
 type transFnWrapper struct {
-	fn       TransformationFn
+	fn       tranFuncInternal
 	runOnNil bool
 }
 
 // register a transformation
 func (v *validator) registerTransformation(
 	name string,
-	transformation TransformationFn,
+	transformation tranFuncInternal,
 	builtIn bool,
 	runOnNil bool,
 ) error {
@@ -483,7 +482,7 @@ func (v *validator) extractRuleData(rules []string) []*ruleData {
 	for _, rule := range rules {
 		isTransform := strings.HasPrefix(rule, "transform=")
 		var valFn valFuncInternal
-		var transFn TransformationFn
+		var transFn tranFuncInternal
 		var param string
 		var runOnNil bool
 		var methodOnly methodType
