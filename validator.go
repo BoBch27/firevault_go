@@ -40,7 +40,7 @@ func newValidator() *validator {
 	// register predefined transformators
 	for name, trans := range builtInTransformators {
 		// no need to error check here, built in validations are always valid
-		_ = validator.registerTransformation(name, trans, true, false)
+		_ = validator.registerTransformation(name, trans.toTranFuncInternal(), true, false)
 	}
 
 	return validator

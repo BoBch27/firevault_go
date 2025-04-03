@@ -63,6 +63,22 @@ type Transformation interface {
 	toTranFuncInternal() tranFuncInternal
 }
 
+// A TransformationFunc is a function
+// that's executed during a field
+// transformation.
+type TransformationFunc func(fs FieldScope) (interface{}, error)
+
+// turns exported func type to internal val func type
+func (t TransformationFunc) toTranFuncInternal() tranFuncInternal {
+	if t == nil {
+		return nil
+	}
+
+	return func(_ context.Context, fs FieldScope) (interface{}, error) {
+		return t(fs)
+	}
+}
+
 // A TransformationFuncCtx is a
 // context-aware function that's executed
 // during a field transformation. Useful
@@ -70,7 +86,7 @@ type Transformation interface {
 // dynamically on a context.
 type TransformationFuncCtx func(ctx context.Context, fs FieldScope) (interface{}, error)
 
-// implement method to satisfy interface
+// turns exported func type to internal val func type
 func (t TransformationFuncCtx) toTranFuncInternal() tranFuncInternal {
 	if t == nil {
 		return nil

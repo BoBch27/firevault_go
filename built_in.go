@@ -1,7 +1,6 @@
 package firevault
 
 import (
-	"context"
 	"errors"
 	"reflect"
 	"strings"
@@ -29,7 +28,7 @@ var (
 		"min":               validateMin,
 	}
 
-	builtInTransformators = map[string]tranFuncInternal{
+	builtInTransformators = map[string]TransformationFunc{
 		"uppercase":  transformUppercase,
 		"lowercase":  transformLowercase,
 		"trim_space": transformTrimSpace,
@@ -173,7 +172,7 @@ func validateMin(fs FieldScope) (bool, error) {
 }
 
 // transforms a field of string type to upper case
-func transformUppercase(_ context.Context, fs FieldScope) (interface{}, error) {
+func transformUppercase(fs FieldScope) (interface{}, error) {
 	if fs.Kind() != reflect.String {
 		return fs.Value().Interface(), nil
 	}
@@ -182,7 +181,7 @@ func transformUppercase(_ context.Context, fs FieldScope) (interface{}, error) {
 }
 
 // transforms a field of string type to lower case
-func transformLowercase(_ context.Context, fs FieldScope) (interface{}, error) {
+func transformLowercase(fs FieldScope) (interface{}, error) {
 	if fs.Kind() != reflect.String {
 		return fs.Value().Interface(), nil
 	}
@@ -191,7 +190,7 @@ func transformLowercase(_ context.Context, fs FieldScope) (interface{}, error) {
 }
 
 // transforms a field of string type by removing all white space
-func transformTrimSpace(_ context.Context, fs FieldScope) (interface{}, error) {
+func transformTrimSpace(fs FieldScope) (interface{}, error) {
 	if fs.Kind() != reflect.String {
 		return fs.Value().Interface(), nil
 	}
