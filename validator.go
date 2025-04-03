@@ -152,6 +152,7 @@ func (v *validator) registerErrorFormatter(errFormatter ErrorFormatterFunc) erro
 
 // options used during validation
 type validationOpts struct {
+	collPath           string
 	method             methodType
 	skipValidation     bool
 	skipValFields      []string
@@ -172,8 +173,9 @@ func (v *validator) validate(
 	}
 
 	fs := &fieldScope{
-		typ:   reflect.TypeOf(data),
-		value: reflect.ValueOf(data),
+		collPath: opts.collPath,
+		typ:      reflect.TypeOf(data),
+		value:    reflect.ValueOf(data),
 	}
 
 	if fs.value.Kind() != reflect.Pointer {
@@ -206,7 +208,7 @@ func (v *validator) validateStructFields(
 	if !ok {
 		// extract struct data and store in cache
 		var err error
-		sd, err = v.extractStructData(fs.typ, fs.value, fs.path, fs.structPath, fs.dynamic)
+		sd, err = v.extractStructData(fs.collPath, fs.typ, fs.value, fs.path, fs.structPath, fs.dynamic)
 		if err != nil {
 			return nil, err
 		}
@@ -245,6 +247,7 @@ func (v *validator) validateStructFields(
 
 // iterate over and collect struct fields data and store in cache
 func (v *validator) extractStructData(
+	collPath string,
 	typ reflect.Type,
 	val reflect.Value,
 	path string,
@@ -268,6 +271,7 @@ func (v *validator) extractStructData(
 		}
 
 		fs := &fieldScope{
+			collPath:     collPath,
 			strct:        val,
 			field:        fieldType.Name,
 			structField:  fieldType.Name,
@@ -678,6 +682,7 @@ func (v *validator) processMapValue(
 		}
 
 		newFs := &fieldScope{
+			collPath:    fs.collPath,
 			strct:       fs.strct,
 			field:       key.String(),
 			structField: key.String(),
@@ -718,6 +723,7 @@ func (v *validator) processSliceValue(
 		}
 
 		newFs := &fieldScope{
+			collPath:    fs.collPath,
 			strct:       fs.strct,
 			field:       fmt.Sprintf("[%d]", i),
 			structField: fmt.Sprintf("[%d]", i),

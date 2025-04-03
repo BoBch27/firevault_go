@@ -132,9 +132,9 @@ connection.RegisterValidation(
 		}
 
 		// check DB to see if field exists (this read will be executed in a transaction)
-		doc, err := Collection[User](connection, "users").FindOne(
+		doc, err := Collection[User](connection, fs.Collection()).FindOne(
 			ctx,
-			NewQuery().Where(fs.Field(), "==", fs.Value().String()),
+			NewQuery().Where(fs.Field(), "==", fs.Value().Interface()),
 			NewOptions().Transaction(tx),
 		)
 		if err != nil {
