@@ -176,7 +176,7 @@ func (c *Connection) RegisterErrorFormatter(errorFormatter ErrorFormatterFunc) e
 // all retries.
 func (c *Connection) RunTransaction(
 	ctx context.Context,
-	fn func(context.Context, *Transaction) error,
+	fn func(ctx context.Context, tx *Transaction) error,
 ) error {
 	return c.client.RunTransaction(ctx, fn)
 }

@@ -197,18 +197,18 @@ func (v *validator) validate(
 // based on provided tags and options
 func (v *validator) validateStructFields(
 	ctx context.Context,
-	fs *fieldScope,
+	parentFs *fieldScope,
 	opts validationOpts,
 ) (map[string]interface{}, error) {
 	// map which will hold all fields to pass to firestore
-	dataMap := make(map[string]interface{}, fs.value.NumField())
+	dataMap := make(map[string]interface{}, parentFs.value.NumField())
 
 	// get cached struct data, if available
-	sd, ok := v.cache.get(fs.typ)
+	sd, ok := v.cache.get(parentFs.typ)
 	if !ok {
 		// extract struct data and store in cache
 		var err error
-		sd, err = v.extractStructData(fs.collPath, fs.typ, fs.value, fs.path, fs.structPath, fs.dynamic)
+		sd, err = v.extractStructData(parentFs)
 		if err != nil {
 			return nil, err
 		}
@@ -217,7 +217,7 @@ func (v *validator) validateStructFields(
 	// iterate over struct fields
 	for i := 0; i < len(sd.fields); i++ {
 		cachedFs := sd.fields[i]
-		newVal := fs.value.Field(i)
+		newVal := parentFs.value.Field(i)
 
 		// always use latest value
 		if cachedFs.value != newVal {
@@ -226,8 +226,8 @@ func (v *validator) validateStructFields(
 
 		// use dynamic paths (of map/slice element as its key/index may have changed)
 		if cachedFs.dynamic {
-			cachedFs.path = v.getFieldPath(fs.path, cachedFs.field)
-			cachedFs.structField = v.getFieldPath(fs.structPath, cachedFs.structField)
+			cachedFs.path = v.getFieldPath(parentFs.path, cachedFs.field)
+			cachedFs.structField = v.getFieldPath(parentFs.structPath, cachedFs.structField)
 		}
 
 		// process each individual field
@@ -246,22 +246,15 @@ func (v *validator) validateStructFields(
 }
 
 // iterate over and collect struct fields data and store in cache
-func (v *validator) extractStructData(
-	collPath string,
-	typ reflect.Type,
-	val reflect.Value,
-	path string,
-	structPath string,
-	dynamic bool,
-) (*structData, error) {
+func (v *validator) extractStructData(parentFs *fieldScope) (*structData, error) {
 	sd := &structData{
-		name:   typ.Name(),
-		fields: make([]*fieldScope, typ.NumField()),
+		name:   parentFs.typ.Name(),
+		fields: make([]*fieldScope, parentFs.typ.NumField()),
 	}
 
-	for i := 0; i < typ.NumField(); i++ {
-		fieldValue := val.Field(i)
-		fieldType := typ.Field(i)
+	for i := 0; i < parentFs.typ.NumField(); i++ {
+		fieldValue := parentFs.value.Field(i)
+		fieldType := parentFs.typ.Field(i)
 
 		tag := fieldType.Tag.Get("firevault")
 
@@ -271,15 +264,15 @@ func (v *validator) extractStructData(
 		}
 
 		fs := &fieldScope{
-			collPath:     collPath,
-			strct:        val,
+			collPath:     parentFs.collPath,
+			strct:        parentFs.value,
 			field:        fieldType.Name,
 			structField:  fieldType.Name,
 			displayField: v.getDisplayName(fieldType.Name),
 			value:        fieldValue,
 			kind:         fieldType.Type.Kind(),
 			typ:          fieldType.Type,
-			dynamic:      dynamic,
+			dynamic:      parentFs.dynamic,
 		}
 
 		// parse tag into separate rules
@@ -291,8 +284,8 @@ func (v *validator) extractStructData(
 		}
 
 		// get dot-separated field and struct path
-		fs.path = v.getFieldPath(path, fs.field)
-		fs.structPath = v.getFieldPath(structPath, fs.structField)
+		fs.path = v.getFieldPath(parentFs.path, fs.field)
+		fs.structPath = v.getFieldPath(parentFs.structPath, fs.structField)
 
 		// check if field is of supported type
 		err := v.validateFieldType(fs.kind, fs.path)
@@ -327,7 +320,7 @@ func (v *validator) extractStructData(
 	}
 
 	// store in cache
-	v.cache.set(typ, sd)
+	v.cache.set(parentFs.typ, sd)
 	return sd, nil
 }
 
@@ -665,11 +658,11 @@ func (v *validator) processFinalValue(
 // process map's nested fields
 func (v *validator) processMapValue(
 	ctx context.Context,
-	fs *fieldScope,
+	parentFs *fieldScope,
 	opts validationOpts,
 ) (map[string]interface{}, error) {
-	newMap := make(map[string]interface{}, fs.value.Len())
-	iter := fs.value.MapRange()
+	newMap := make(map[string]interface{}, parentFs.value.Len())
+	iter := parentFs.value.MapRange()
 
 	for iter.Next() {
 		key := iter.Key()
@@ -681,20 +674,20 @@ func (v *validator) processMapValue(
 			kind = val.Kind()
 		}
 
-		newFs := &fieldScope{
-			collPath:    fs.collPath,
-			strct:       fs.strct,
+		fs := &fieldScope{
+			collPath:    parentFs.collPath,
+			strct:       parentFs.strct,
 			field:       key.String(),
 			structField: key.String(),
-			path:        fmt.Sprintf("%s.%v", fs.path, key.Interface()),
-			structPath:  fmt.Sprintf("%s.%v", fs.structPath, key.Interface()),
+			path:        fmt.Sprintf("%s.%v", parentFs.path, key.Interface()),
+			structPath:  fmt.Sprintf("%s.%v", parentFs.structPath, key.Interface()),
 			value:       val,
 			kind:        kind,
 			typ:         val.Type(),
 			dynamic:     true,
 		}
 
-		processedValue, err := v.processFinalValue(ctx, newFs, opts)
+		processedValue, err := v.processFinalValue(ctx, fs, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -708,13 +701,13 @@ func (v *validator) processMapValue(
 // process slice/array's nested fields
 func (v *validator) processSliceValue(
 	ctx context.Context,
-	fs *fieldScope,
+	parentFs *fieldScope,
 	opts validationOpts,
 ) ([]interface{}, error) {
-	newSlice := make([]interface{}, fs.value.Len())
+	newSlice := make([]interface{}, parentFs.value.Len())
 
-	for i := 0; i < fs.value.Len(); i++ {
-		val := fs.value.Index(i)
+	for i := 0; i < parentFs.value.Len(); i++ {
+		val := parentFs.value.Index(i)
 		kind := val.Kind()
 
 		if kind == reflect.Pointer {
@@ -722,20 +715,20 @@ func (v *validator) processSliceValue(
 			kind = val.Kind()
 		}
 
-		newFs := &fieldScope{
-			collPath:    fs.collPath,
-			strct:       fs.strct,
+		fs := &fieldScope{
+			collPath:    parentFs.collPath,
+			strct:       parentFs.strct,
 			field:       fmt.Sprintf("[%d]", i),
 			structField: fmt.Sprintf("[%d]", i),
-			path:        fmt.Sprintf("%s[%d]", fs.path, i),
-			structPath:  fmt.Sprintf("%s[%d]", fs.structPath, i),
+			path:        fmt.Sprintf("%s[%d]", parentFs.path, i),
+			structPath:  fmt.Sprintf("%s[%d]", parentFs.structPath, i),
 			value:       val,
 			kind:        kind,
 			typ:         val.Type(),
 			dynamic:     true,
 		}
 
-		processedValue, err := v.processFinalValue(ctx, newFs, opts)
+		processedValue, err := v.processFinalValue(ctx, fs, opts)
 		if err != nil {
 			return nil, err
 		}
