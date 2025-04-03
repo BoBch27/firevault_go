@@ -57,6 +57,22 @@ func (v ValidationFuncTx) toValFuncInternal() valFuncInternal {
 	}
 }
 
+// A ValidationFuncCtxTx is a context-aware
+// and transaction-aware function that's
+// executed during a field validation. Useful
+// when a validation may depend on a context
+// and needs to be executed inside a transaction.
+type ValidationFuncCtxTx func(ctx context.Context, tx *Transaction, fs FieldScope) (bool, error)
+
+// turns exported func type to internal val func type
+func (v ValidationFuncCtxTx) toValFuncInternal() valFuncInternal {
+	if v == nil {
+		return nil
+	}
+
+	return valFuncInternal(v)
+}
+
 // A Transformation interface wraps
 // different transformation function types.
 type Transformation interface {
@@ -113,4 +129,21 @@ func (t TransformationFuncTx) toTranFuncInternal() tranFuncInternal {
 	return func(_ context.Context, tx *Transaction, fs FieldScope) (interface{}, error) {
 		return t(tx, fs)
 	}
+}
+
+// A TransformationFuncCtxTx is a context-aware
+// and transaction-aware function that's
+// executed during a field transformation.
+// Useful when a transformation may depend on a
+// context and needs to be executed inside a
+// transaction.
+type TransformationFuncCtxTx func(ctx context.Context, tx *Transaction, fs FieldScope) (interface{}, error)
+
+// turns exported func type to internal val func type
+func (t TransformationFuncCtxTx) toTranFuncInternal() tranFuncInternal {
+	if t == nil {
+		return nil
+	}
+
+	return tranFuncInternal(t)
 }
