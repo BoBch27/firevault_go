@@ -74,7 +74,7 @@ func (t TransformationFunc) toTranFuncInternal() tranFuncInternal {
 		return nil
 	}
 
-	return func(_ context.Context, fs FieldScope) (interface{}, error) {
+	return func(_ context.Context, _ *Transaction, fs FieldScope) (interface{}, error) {
 		return t(fs)
 	}
 }
@@ -92,5 +92,7 @@ func (t TransformationFuncCtx) toTranFuncInternal() tranFuncInternal {
 		return nil
 	}
 
-	return tranFuncInternal(t)
+	return func(ctx context.Context, _ *Transaction, fs FieldScope) (interface{}, error) {
+		return t(ctx, fs)
+	}
 }

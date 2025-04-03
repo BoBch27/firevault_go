@@ -50,7 +50,7 @@ func BenchmarkValidateWithCustomRules(b *testing.B) {
 
 	err = v.registerTransformation(
 		"lowercase",
-		func(ctx context.Context, fs FieldScope) (interface{}, error) {
+		func(ctx context.Context, tx *Transaction, fs FieldScope) (interface{}, error) {
 			return strings.ToLower(fs.Value().String()), nil
 		},
 		false,

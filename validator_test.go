@@ -204,7 +204,7 @@ func TestCustomRules(t *testing.T) {
 	// Custom transformation rule
 	err = v.registerTransformation(
 		"uppercase",
-		func(ctx context.Context, fs FieldScope) (interface{}, error) {
+		func(ctx context.Context, tx *Transaction, fs FieldScope) (interface{}, error) {
 			return strings.ToUpper(fs.Value().String()), nil
 		},
 		false,
@@ -430,7 +430,7 @@ func TestRegisterTransformation(t *testing.T) {
 		{
 			name:      "Valid registration",
 			transName: "test_transformation",
-			transformation: func(ctx context.Context, fs FieldScope) (interface{}, error) {
+			transformation: func(ctx context.Context, tx *Transaction, fs FieldScope) (interface{}, error) {
 				return fs.Value().Interface(), nil
 			},
 			runOnNil: false,
@@ -439,7 +439,7 @@ func TestRegisterTransformation(t *testing.T) {
 		{
 			name:      "Empty name",
 			transName: "",
-			transformation: func(ctx context.Context, fs FieldScope) (interface{}, error) {
+			transformation: func(ctx context.Context, tx *Transaction, fs FieldScope) (interface{}, error) {
 				return fs.Value().Interface(), nil
 			},
 			runOnNil: false,
