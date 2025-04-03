@@ -23,10 +23,10 @@ func (v ValidationFunc) toValFuncInternal() valFuncInternal {
 	}
 }
 
-// A ValidationFuncCtx is a context-aware function
-// that's executed during a field validation.
-// Useful when a validation may depend
-// dynamically on a context.
+// A ValidationFuncCtx is a context-aware
+// function that's executed during a field
+// validation. Useful when a validation may
+// depend dynamically on a context.
 type ValidationFuncCtx func(ctx context.Context, fs FieldScope) (bool, error)
 
 // turns exported func type to internal val func type
@@ -37,5 +37,22 @@ func (v ValidationFuncCtx) toValFuncInternal() valFuncInternal {
 
 	return func(ctx context.Context, _ *Transaction, fs FieldScope) (bool, error) {
 		return v(ctx, fs)
+	}
+}
+
+// A ValidationFuncTx is a transaction-aware
+// function that's executed during a field
+// validation. Useful when a validation may
+// need to be executed inside a transaction.
+type ValidationFuncTx func(tx *Transaction, fs FieldScope) (bool, error)
+
+// turns exported func type to internal val func type
+func (v ValidationFuncTx) toValFuncInternal() valFuncInternal {
+	if v == nil {
+		return nil
+	}
+
+	return func(_ context.Context, tx *Transaction, fs FieldScope) (bool, error) {
+		return v(tx, fs)
 	}
 }
