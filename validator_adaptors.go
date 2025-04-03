@@ -96,3 +96,21 @@ func (t TransformationFuncCtx) toTranFuncInternal() tranFuncInternal {
 		return t(ctx, fs)
 	}
 }
+
+// A TransformationFuncTx is a
+// transaction-aware function that's
+// executed during a field transformation.
+// Useful when a transformation may need
+// to be executed inside a transaction.
+type TransformationFuncTx func(tx *Transaction, fs FieldScope) (interface{}, error)
+
+// turns exported func type to internal val func type
+func (t TransformationFuncTx) toTranFuncInternal() tranFuncInternal {
+	if t == nil {
+		return nil
+	}
+
+	return func(_ context.Context, tx *Transaction, fs FieldScope) (interface{}, error) {
+		return t(tx, fs)
+	}
+}
