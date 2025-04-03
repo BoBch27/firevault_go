@@ -98,9 +98,10 @@ Firevault validates fields' values based on the defined rules. There are built-i
 - To define a custom validation, use `Connection`'s `RegisterValidation` method.
 	- *Expects*:
 		- name: A `string` defining the validation name. If the name includes a method-specific suffix ("_create", "_update", or "_validate"), the rule will be applied exclusively during calls to the corresponding method type and ignored for others.
-		- func: A function of type `ValidationFn`. The passed in function accepts two parameters.
+		- func: A function that satisfies the `Validation` interface. Available types can be found in [validator_adaptors.go](https://github.com/bobch27/firevault_go/blob/main/validator_adaptors.go). The different types have different params, but the same return values.
 			- *Expects*:
-				- ctx: A context.
+				- ctx: A context (only in `ValidationFuncCtx` and `ValidationFuncCtxTx`).
+				- tx: A `Transaction` instance (only in `ValidationFuncTx` and `ValidationFuncCtxTx`).
 				- fs: A value that implements the `FieldScope` interface, which gives access to different field data, useful during the validation. Available methods for `FieldScope` can be found in [field_scope.go](https://github.com/bobch27/firevault_go/blob/main/field_scope.go).
 			- *Returns*:
 				- result: A `bool` which returns `true` if check has passed, and `false` if it hasn't.
@@ -112,14 +113,39 @@ Firevault validates fields' values based on the defined rules. There are built-i
 ```go
 connection.RegisterValidation(
 	"is_upper", 
-	func(_ context.Context, fs FieldScope) (bool, error) {
+	ValidationFunc(func(fs FieldScope) (bool, error) {
 		if fs.Kind() != reflect.String {
 			return false, nil
 		}
 
 		s := fs.Value().String()
 		return s == strings.toUpper(s), nil
-	},
+	}),
+)
+```
+```go
+connection.RegisterValidation(
+	"is_unique", 
+	ValidationFuncCtxTx(func(ctx context.Context, tx *Transaction, fs FieldScope) (bool, error) {
+		if tx == nil {
+			return false, errors.New("is_unique validation should be done in a transaction")
+		}
+
+		// check DB to see if field exists (this read will be executed in a transaction)
+		doc, err := Collection[User](connection, "users").FindOne(
+			ctx,
+			NewQuery().Where(fs.Field(), "==", fs.Value().String()),
+			NewOptions().Transaction(tx),
+		)
+		if err != nil {
+			return false, err
+		}
+		if doc.ID != "" {
+			return false, nil
+		}
+
+		return true, nil
+	}),
 )
 ```
 
@@ -127,7 +153,7 @@ You can then chain the rule like a normal one.
 
 ```go
 type User struct {
-	Name string `firevault:"name,required,is_upper,omitempty"`
+	Name string `firevault:"name,required,is_upper,is_unique,omitempty"`
 }
 ```
 
@@ -146,9 +172,10 @@ Firevault also supports rules that transform the field's value. There are built-
 - To define a transformation, use `Connection`'s `RegisterTransformation` method.
 	- *Expects*:
 		- name: A `string` defining the transformation name. If the name includes a method-specific suffix ("_create", "_update", or "_validate"), the rule will be applied exclusively during calls to the corresponding method type and ignored for others.
-		- func: A function of type `TransformationFn`. The passed in function accepts two parameters.
-			- *Expects*: 
-				- ctx: A context.
+		- func: A function that satisfies the `Transformation` interface. Available types can be found in [validator_adaptors.go](https://github.com/bobch27/firevault_go/blob/main/validator_adaptors.go). The different types have different params, but the same return values.
+			- *Expects*:
+				- ctx: A context (only in `TransformationFuncCtx` and `TransformationFuncCtxTx`).
+				- tx: A `Transaction` instance (only in `TransformationFuncTx` and `TransformationFuncCtxTx`).
 				- fs: A value that implements the `FieldScope` interface, which gives access to different field data, useful during the transformation. Available methods for `FieldScope` can be found in [field_scope.go](https://github.com/bobch27/firevault_go/blob/main/field_scope.go).
 			- *Returns*:
 				- result: An `interface{}` with the new, transformed, value.
@@ -160,13 +187,13 @@ Firevault also supports rules that transform the field's value. There are built-
 ```go
 connection.RegisterTransformation(
 	"to_lower", 
-	func(_ context.Context, fs FieldScope) (interface{}, error) {
+	TransformationFunc(func(fs FieldScope) (interface{}, error) {
 		if fs.Kind() != reflect.String {
 			return fs.Value().Interface(), errors.New(fs.StructField() + " must be a string")
 		}
 
 		return strings.ToLower(fs.Value().String()), nil
-	},
+	}),
 )
 ```
 
@@ -685,7 +712,7 @@ To perform operations within a transaction, pass a transaction instance as an op
 func runSimpleTransaction(ctx context.Context, connection *Connection) error {
 	// ...
 
-	collection := Collection(connection, "users")
+	collection := Collection[User](connection, "users")
 	query := NewQuery().Where("age", "==", 18)
 	updates := &User{Age: 19}
 
@@ -731,12 +758,12 @@ Custom Errors
 ------------
 During collection methods which require validation (i.e. `Create`, `Update` and `Validate`), Firevault may return an error that implements the `FieldError` interface, which can aid in presenting custom error messages to users. All other errors are of the usual `error` type, and do not satisfy the the interface. Available methods for `FieldError` can be found in [field_error.go](https://github.com/bobch27/firevault_go/blob/main/field_error.go). 
 
-Firevault supports the creation of custom, user-friendly, error messages, through `ErrorFormatterFn`. These are run whenever a `FieldError` is created (i.e. whenever a validation rule fails). All registered formatters are executed on the `FieldError` and if all return a nil error (or there's no registered formatters), a `FieldError` is returned instead. Otherwise, the first custom error is returned.
+Firevault supports the creation of custom, user-friendly, error messages, through `ErrorFormatterFunc`. These are run whenever a `FieldError` is created (i.e. whenever a validation rule fails). All registered formatters are executed on the `FieldError` and if all return a nil error (or there's no registered formatters), a `FieldError` is returned instead. Otherwise, the first custom error is returned.
 
 *Error formatters:*
 - To define an error formatter, use `Connection`'s `RegisterErrorFormatter` method.
 	- *Expects*:
-		- func: A function of type `ErrorFormatterFn`. The passed in function accepts one parameter.
+		- func: A function of type `ErrorFormatterFunc`. The passed in function accepts one parameter.
 			- *Expects*:
 				- fe: An error that complies with the `FieldError` interface.
 			- *Returns*:

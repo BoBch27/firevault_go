@@ -6,9 +6,8 @@ import (
 	"cloud.google.com/go/firestore"
 )
 
-// A Firevault Options instance allows for
-// the overriding of default options for
-// validation, creation and updating methods.
+// Options allows for the overriding of default
+// options for CollectionRef methods.
 //
 // Options values are immutable.
 // Each Options method creates a new instance
@@ -28,9 +27,8 @@ type Options struct {
 
 // Create a new Options instance.
 //
-// A Firevault Options instance allows for
-// the overriding of default options for
-// validation, creation and updating methods.
+// Options allows for the overriding of default
+// options for CollectionRef methods.
 //
 // Options values are immutable.
 // Each Options method creates a new instance

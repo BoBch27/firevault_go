@@ -22,9 +22,9 @@ type fieldError struct {
 	param        string
 }
 
-// A Firevault FieldError interface gives access
-// to all field validation error details,
-// which aid in constructing a custom error message.
+// FieldError interface gives access to all field
+// validation error details, which aid in
+// constructing a custom error message.
 type FieldError interface {
 	// Field returns the field's name, with the tag
 	// name taking precedence over the field's

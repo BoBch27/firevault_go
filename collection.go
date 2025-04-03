@@ -11,8 +11,8 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-// A Firevault CollectionRef holds a reference to a
-// Firestore Collection and allows for the fetching and
+// CollectionRef holds a reference to a Firestore
+// Collection and allows for the fetching and
 // modifying (with validation) of documents in it.
 //
 // CollectionRef instances are lightweight and safe to
@@ -25,8 +25,8 @@ type CollectionRef[T interface{}] struct {
 	ref        *firestore.CollectionRef
 }
 
-// A Firevault Document holds the ID and data related to
-// fetched document.
+// Document holds the ID and data related to a fetched
+// document.
 type Document[T interface{}] struct {
 	ID       string
 	Data     T
@@ -49,8 +49,8 @@ type metadata struct {
 
 // Create a new CollectionRef instance.
 //
-// A Firevault CollectionRef holds a reference to a
-// Firestore Collection and allows for the fetching and
+// CollectionRef holds a reference to a Firestore
+// Collection and allows for the fetching and
 // modifying (with validation) of documents in it.
 //
 // CollectionRef instances are lightweight and safe to

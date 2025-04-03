@@ -128,7 +128,7 @@ func (v *validator) registerTransformation(
 	return nil
 }
 
-// An ErrorFormatterFunc is the function that's executed
+// ErrorFormatterFunc is the function that's executed
 // to generate a custom, user-friendly error message,
 // based on FieldError's fields.
 //
