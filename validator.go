@@ -156,6 +156,7 @@ type validationOpts struct {
 	method             methodType
 	skipValidation     bool
 	skipValFields      []string
+	skipValRules       []string
 	emptyFieldsAllowed []string
 	modifyOriginal     bool
 	deleteEmpty        bool
@@ -351,9 +352,14 @@ func (v *validator) processStructField(
 		fs.value = fs.value.Elem()
 	}
 
+	// check if validation should be skipped for this field
+	skipVal := opts.skipValidation &&
+		(len(opts.skipValFields) == 0 || slices.Contains(opts.skipValFields, fs.path)) &&
+		len(opts.skipValRules) == 0
+
 	// apply rules (both transformations and validations)
 	// unless skipped using options
-	if !opts.skipValidation || (len(opts.skipValFields) > 0 && !slices.Contains(opts.skipValFields, fs.path)) {
+	if !skipVal {
 		// store field value in order to compare if it has changed after transformations
 		fieldValue := fs.value
 
@@ -537,6 +543,13 @@ func (v *validator) applyRules(
 	for _, rule := range fs.rules {
 		// skip method specific rules which don't match current method
 		if rule.methodOnly != "" && rule.methodOnly != opts.method {
+			continue
+		}
+
+		// skip if rule is specified using options
+		// (whether globally, or only for current field)
+		if opts.skipValidation && slices.Contains(opts.skipValRules, rule.name) &&
+			(len(opts.skipValFields) == 0 || slices.Contains(opts.skipValFields, fs.path)) {
 			continue
 		}
 

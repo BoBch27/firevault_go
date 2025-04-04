@@ -15,6 +15,7 @@ import (
 type Options struct {
 	skipValidation   bool
 	skipValFields    []string
+	skipValRules     []string
 	allowEmptyFields []string
 	modifyOriginal   bool
 	method           methodType
@@ -46,6 +47,10 @@ func NewOptions() Options {
 // the specified fields (dot-separated paths)
 // are skipped.
 //
+// When used with SkipValidationRules, only
+// the specified rules will be skipped for
+// the provided fields.
+//
 // Calling this method without arguments
 // overrides previous calls that specified
 // particular fields, ensuring validation
@@ -63,6 +68,44 @@ func (o Options) SkipValidationFields(fields ...string) Options {
 		o.skipValFields = append(o.skipValFields, fields...)
 	} else {
 		o.skipValFields = []string{}
+	}
+
+	return o
+}
+
+// Skip specific validation rules, while
+// still enforcing the name, ignore, and
+// omitempty rules.
+//
+// If no rules are provided, all validation
+// rules (including transformations) are
+// skipped. Otherwise, only the specified
+// rules are ignored.
+//
+// When used with SkipValidationFields, the
+// provided rules will be skipped only
+// for the specified fields.
+//
+// To skip a transformation rule, specify
+// its name without a prefix.
+//
+// Calling this method without arguments
+// overrides previous calls that specified
+// particular rules, ensuring all rules are
+// skipped.
+//
+// Multiple calls to the method, with specified
+// rules, are cumulative.
+//
+// Only applies to the Validate, Create and
+// Update methods.
+func (o Options) SkipValidationRules(rules ...string) Options {
+	o.skipValidation = true
+
+	if len(rules) > 0 {
+		o.skipValRules = append(o.skipValRules, rules...)
+	} else {
+		o.skipValRules = []string{}
 	}
 
 	return o
