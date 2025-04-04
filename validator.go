@@ -483,7 +483,7 @@ func (v *validator) extractRuleData(rules []string) []*ruleData {
 	rulesData := make([]*ruleData, 0, len(rules))
 
 	for _, rule := range rules {
-		isTransform := strings.HasPrefix(rule, "transform=")
+		isTransform := strings.HasPrefix(rule, "transform:")
 		var valFn valFuncInternal
 		var transFn tranFuncInternal
 		var param string
@@ -499,7 +499,7 @@ func (v *validator) extractRuleData(rules []string) []*ruleData {
 		}
 
 		if isTransform {
-			rule = strings.TrimPrefix(rule, "transform=")
+			rule = strings.TrimPrefix(rule, "transform:")
 
 			transWrapper, ok := v.transformations[rule]
 			if !ok {

@@ -216,7 +216,7 @@ func TestCustomRules(t *testing.T) {
 
 	type CustomStruct struct {
 		CustomField    string `firevault:"custom_field,custom"`
-		UppercaseField string `firevault:"uppercase_field,transform=uppercase"`
+		UppercaseField string `firevault:"uppercase_field,transform:uppercase"`
 	}
 
 	tests := []struct {

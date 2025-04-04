@@ -62,7 +62,7 @@ func BenchmarkValidateWithCustomRules(b *testing.B) {
 
 	type CustomStruct struct {
 		Name  string `firevault:"name,required,min=3"`
-		Email string `firevault:"email,required,email,transform=lowercase"`
+		Email string `firevault:"email,required,email,transform:lowercase"`
 		Age   int    `firevault:"age,min=18,max=120,is_thirty"`
 	}
 

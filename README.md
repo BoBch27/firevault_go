@@ -52,7 +52,7 @@ Defining a model is as simple as creating a struct with Firevault tags.
 type User struct {
 	Name     string   `firevault:"name,required,omitempty"`
 	Email    string   `firevault:"email,required,email,is_unique,omitempty"`
-	Password string   `firevault:"password,required,min=6,transform=hash_pass,omitempty"`
+	Password string   `firevault:"password,required,min=6,transform:hash_pass,omitempty"`
 	Address  *Address `firevault:"address,omitempty"`
 	Age      int      `firevault:"age,required,min=18,omitempty"`
 }
@@ -197,20 +197,20 @@ connection.RegisterTransformation(
 )
 ```
 
-You can then chain the rule like a normal one, but don't forget to use the `transform=` prefix.
+You can then chain the rule like a normal one, but don't forget to use the `transform:` prefix.
 
 *Again, the tag order matters. Defining a transformation at the end, means the value will be updated **after** the validations, whereas a definition at the start, means the field will be updated and **then** validated.*
 
 ```go
 type User struct {
 	// transformation will take place after all validations have passed
-	Email string `firevault:"email,required,email,transform=to_lower,omitempty"`
+	Email string `firevault:"email,required,email,transform:to_lower,omitempty"`
 }
 ```
 ```go
 type User struct {
 	// the "email" validation will be executed on the new value
-	Email string `firevault:"email,required,transform=to_lower,email,omitempty"`
+	Email string `firevault:"email,required,transform:to_lower,email,omitempty"`
 }
 ```
 
