@@ -378,6 +378,7 @@ func (c *CollectionRef[T]) parseOptions(
 		method:             method,
 		skipValidation:     passedOpts.skipValidation,
 		skipValFields:      passedOpts.skipValFields,
+		skipValRules:       passedOpts.skipValRules,
 		emptyFieldsAllowed: passedOpts.allowEmptyFields,
 		modifyOriginal:     passedOpts.modifyOriginal,
 		tx:                 passedOpts.transaction,
