@@ -621,15 +621,23 @@ options := firevault.NewOptions()
 ```
 
 ### Methods
-The `Options` instance has **11** built-in methods to support overriding default `CollectionRef` method options. Some options only apply to specific `CollectionRef` methods.
+The `Options` instance has **12** built-in methods to support overriding default `CollectionRef` method options. Some options only apply to specific `CollectionRef` methods.
 
-- `SkipValidation` - Returns a new `Options` instance that allows to skip the data validation during `Create`, `Update` and `Validate` methods. The "name" rule, "omitempty" rules and "ignore" rule will still be honoured. If no field paths are provided, validation will be skipped for all fields. Otherwise, validation will only be skipped for the specified field paths.
+- `SkipValidationFields` - Returns a new `Options` instance that allows to skip validation during `Create`, `Update` and `Validate` methods for specific (or all) fields. The "name" rule, "omitempty" rules and "ignore" rule will still be honoured. If no field paths are provided, validation will be skipped for all fields. Otherwise, validation will only be skipped for the specified field paths.
 	- *Expects*:
 		- path: A varying number of `string` values (using dot separation) used to select field paths.
 	- *Returns*:
 		- A new `Options` instance.
 ```go
-newOptions := options.SkipValidation("name")
+newOptions := options.SkipValidationFields("name")
+```
+- `SkipValidationRules` - Returns a new `Options` instance that allows to skip specific (or all) validation rules during `Create`, `Update` and `Validate` methods. The "name" rule, "omitempty" rules and "ignore" rule will still be honoured. If no rules are provided, all validations will be skipped, including transformations. Otherwise, only specified rules will be skipped.
+	- *Expects*:
+		- path: A varying number of `string` values used to select rules.
+	- *Returns*:
+		- A new `Options` instance.
+```go
+newOptions := options.SkipValidationRules("min")
 ```
 - `AllowEmptyFields` - Returns a new `Options` instance that allows to specify which field paths should ignore the "omitempty" rules. Only applies to the `Validate`, `Create` and `Update` methods.
 	- *Expects*:
