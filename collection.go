@@ -79,6 +79,9 @@ func Collection[T interface{}](connection *Connection, path string) *CollectionR
 }
 
 // Validate and transform provided data.
+//
+// To use inside a transaction, pass a transaction
+// instance via Options.
 func (c *CollectionRef[T]) Validate(ctx context.Context, data *T, opts ...Options) error {
 	if c == nil {
 		return errors.New("firevault: nil CollectionRef")

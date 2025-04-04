@@ -368,6 +368,7 @@ fmt.Println("Success") // no validation will be performed on the address.Line1 f
 			- ModifyOriginal: When used, if there are transformations which alter field values, the original, passed in struct data will also be updated in place. Note: when used, this will make the entire method call thread-unsafe, so should be used with caution.
 			- AsCreate: When used, it allows the application of the same rules as if performing a `Create` operation (e.g. `required_create`), i.e. it performs the same validation as the one before document creation.
 			- AsUpdate: When used, it allows the application of the same rules as if performing an `Update` operation (e.g. `required_update`), i.e. it performs the same validation as the one before document updating.
+			- Transaction: When called with a `Transaction` instance, it ensures the operation is run as part of a transaction.
 	- *Returns*:
 		- error: An `error` in case something goes wrong during validation.
 	- ***Important***: 
@@ -701,7 +702,7 @@ newOptions := options.RequireLastUpdateTime(time.Now())
 ```go
 newOptions := options.RequireExists()
 ```
-- `Transaction` - Returns a new `Options` instance that allows to add a transaction instance, ensuring the operation is executed as part of a transaction. Does not apply to the `Validate` method.
+- `Transaction` - Returns a new `Options` instance that allows to add a transaction instance, ensuring the operation is executed as part of a transaction.
  	- *Expects*:
  		- tx: A `Transaction` instance to ensure operation is run within a transaction.
  	- *Returns*:

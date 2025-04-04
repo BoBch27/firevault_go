@@ -261,8 +261,6 @@ func (o Options) RequireExists() Options {
 //
 // This option overrides any previous calls
 // to Transaction.
-//
-// Does not apply to the Validate method.
 func (o Options) Transaction(tx *Transaction) Options {
 	o.transaction = tx
 	return o
